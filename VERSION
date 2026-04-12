@@ -11,7 +11,7 @@
 #
 # ==============================================================================
 
-ASE_CLIENT_VIEWER=00.00.01.00001
+ASE_CLIENT_VIEWER=00.00.02.00002
 ASE_CLIENT_VIEWER_NAME=TECH & DESIGN Viewer
 ASE_CLIENT_VIEWER_DESC=Native GTK4 markdown documentation viewer with ECS architecture
 ASE_CLIENT_VIEWER_LAYER=5

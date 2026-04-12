@@ -445,7 +445,7 @@ private:
     void setup_file_monitor(const std::string& root) {
         if (m_file_monitor) m_file_monitor->cancel();
         auto dir = Gio::File::create_for_path(root);
-        m_file_monitor = dir->monitor_directory(Gio::FileMonitor::Flags::WATCH_MOVES);
+        m_file_monitor = dir->monitor_directory(Gio::FileMonitorFlags::WATCH_MOVES);
         m_file_monitor->signal_changed().connect(
             [this](const Glib::RefPtr<Gio::File>&,
                    const Glib::RefPtr<Gio::File>&,
@@ -594,11 +594,11 @@ private:
         }
 
         // Render AST via document renderer
-        render::RenderContext ctx;
+        ase::viewer::render::RenderContext ctx;
         ctx.cr = cr;
         ctx.width = width;
         ctx.viewport_h = height;
-        double total_height = render::render_document(ctx, m_doc);
+        double total_height = ase::viewer::render::render_document(ctx, m_doc);
         m_canvas.set_content_height(static_cast<int>(total_height));
     }
 };
