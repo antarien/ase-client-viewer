@@ -71,6 +71,27 @@ target_compile_features(viewer_core PUBLIC cxx_std_20)
 
 # ── Desktop Executable ───────────────────────────────────────────────
 
+# ── Fetch cmark-gfm (needed by ase-markdown, fetched here for proper target scope) ──
+
+if(NOT TARGET libcmark-gfm-static)
+    include(FetchContent)
+    FetchContent_Declare(cmark_gfm
+        GIT_REPOSITORY https://github.com/github/cmark-gfm.git
+        GIT_TAG 0.29.0.gfm.13
+        GIT_SHALLOW TRUE
+    )
+    set(CMARK_TESTS OFF CACHE BOOL "" FORCE)
+    set(CMARK_SHARED OFF CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(cmark_gfm)
+endif()
+
+# ── Link ase-alloc (L0) ──────────────────────────────────────────────
+
+if(NOT TARGET ase::alloc)
+    set(ASE_FOUNDATION_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../foundation)
+    add_subdirectory(${ASE_FOUNDATION_PATH}/ase-alloc ${CMAKE_BINARY_DIR}/_deps/ase-alloc-build)
+endif()
+
 # ── Link ase-markdown (L1) ───────────────────────────────────────────
 
 if(NOT TARGET ase::markdown)

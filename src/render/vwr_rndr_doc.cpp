@@ -46,14 +46,21 @@ void set_heading_color(const Cairo::RefPtr<Cairo::Context>& cr, uint8_t level) {
     }
 }
 
-void set_callout_color(const Cairo::RefPtr<Cairo::Context>& cr, uint8_t type) {
+struct CalloutRGB { double r, g, b; };
+
+CalloutRGB get_callout_rgb(uint8_t type) {
     switch (type) {
-        case ase::markdown::CALLOUT_INFO:    cr->set_source_rgb(INFO_R, INFO_G, INFO_B); break;
-        case ase::markdown::CALLOUT_WARNING: cr->set_source_rgb(WARN_R, WARN_G, WARN_B); break;
-        case ase::markdown::CALLOUT_TIP:     cr->set_source_rgb(TIP_R, TIP_G, TIP_B); break;
-        case ase::markdown::CALLOUT_NOTE:    cr->set_source_rgb(NOTE_R, NOTE_G, NOTE_B); break;
-        default: cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B); break;
+        case ase::markdown::CALLOUT_INFO:    return {INFO_R, INFO_G, INFO_B};
+        case ase::markdown::CALLOUT_WARNING: return {WARN_R, WARN_G, WARN_B};
+        case ase::markdown::CALLOUT_TIP:     return {TIP_R, TIP_G, TIP_B};
+        case ase::markdown::CALLOUT_NOTE:    return {NOTE_R, NOTE_G, NOTE_B};
+        default: return {MUTED_R, MUTED_G, MUTED_B};
     }
+}
+
+void set_callout_color(const Cairo::RefPtr<Cairo::Context>& cr, uint8_t type) {
+    auto c = get_callout_rgb(type);
+    cr->set_source_rgb(c.r, c.g, c.b);
 }
 
 // Collect all text content from a node subtree
@@ -239,10 +246,8 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
             layout->get_pixel_size(w, h);
 
             // Background tint
-            set_callout_color(ctx.cr, node->callout_type);
-            double r, g, b;
-            ctx.cr->get_source_rgba(r, g, b, r);
-            ctx.cr->set_source_rgba(r, g, b, 0.08);
+            auto callout_c = get_callout_rgb(node->callout_type);
+            ctx.cr->set_source_rgba(callout_c.r, callout_c.g, callout_c.b, 0.08);
             ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, h + 2 * CALLOUT_PAD);
             ctx.cr->fill();
 
