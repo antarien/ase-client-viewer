@@ -1,0 +1,43 @@
+# Maintainer: Antarien <dev@antarien.com>
+pkgname=ase-viewer
+pkgver=0.0.1
+pkgrel=1
+pkgdesc='ASE TECH & DESIGN Documentation Viewer — Native GTK4 Markdown renderer'
+arch=('x86_64')
+url='https://github.com/antarien/ase-client-viewer'
+license=('custom')
+depends=(
+    'gtkmm-4.0'
+    'libadwaita'
+    'ttf-fira-code'
+    'ttf-nerd-fonts-symbols-mono'
+)
+makedepends=(
+    'cmake'
+    'ninja'
+    'gcc'
+    'pkgconf'
+    'git'
+)
+optdepends=(
+    'graphviz: mermaid diagram rendering'
+    'otf-stix: math formula rendering'
+)
+source=("git+https://github.com/antarien/ase-client-viewer.git")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/ase-client-viewer"
+    cmake -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build --parallel
+}
+
+package() {
+    cd "$srcdir/ase-client-viewer"
+    DESTDIR="$pkgdir" cmake --install build
+
+    install -Dm644 packaging/ase-viewer.desktop \
+        "$pkgdir/usr/share/applications/ase-viewer.desktop"
+}
