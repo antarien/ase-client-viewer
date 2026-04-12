@@ -10,12 +10,16 @@
  */
 
 #include <gtkmm.h>
+#include <giomm.h>
 #include <viewer/engine.hpp>
 #include <ase/markdown/markdown.hpp>
 #include "render/vwr_rndr_doc.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+#include <cctype>
+#include <gdk/gdkkeysyms.h>
 
 namespace fs = std::filesystem;
 
@@ -76,6 +80,18 @@ static const char* CSS_DARK = R"(
         font-size: 11px;
         min-height: 24px;
     }
+    .search-entry:focus {
+        border-color: #5a9cb8;
+    }
+    .status-bar {
+        background-color: #0A0A0A;
+        border-top: 1px solid rgba(255, 255, 255, 0.03);
+        padding: 2px 8px;
+        font-family: 'Fira Code', monospace;
+        font-size: 9px;
+        color: #5A5A5A;
+        min-height: 18px;
+    }
 )";
 
 // ── File Tree Model ─────────────────────────────────────────────────
@@ -101,12 +117,14 @@ public:
     void load_directory(const std::string& path) {
         m_root_path = path;
         populate_tree(path);
+        setup_file_monitor(path);
         set_title("ASE Viewer — " + path);
     }
 
     void load_file(const std::string& path) {
         m_root_path = fs::path(path).parent_path().string();
         populate_tree(m_root_path);
+        setup_file_monitor(m_root_path);
         open_file(path);
         set_title("ASE Viewer — " + fs::path(path).filename().string());
     }
@@ -115,13 +133,20 @@ private:
     std::string m_root_path;
     FileTreeColumns m_columns;
     Glib::RefPtr<Gtk::TreeStore> m_tree_store;
+    Glib::RefPtr<Gtk::TreeModelFilter> m_filter_model;
     Gtk::TreeView m_tree_view;
     Gtk::DrawingArea m_canvas;
     Gtk::Paned m_paned{Gtk::Orientation::HORIZONTAL};
     Gtk::SearchEntry m_search;
+    std::string m_search_text;
+
+    // File watching
+    Glib::RefPtr<Gio::FileMonitor> m_file_monitor;
+    sigc::connection m_reload_timer;
 
     // Current document
     std::string m_content;
+    std::string m_current_file;
     ase::markdown::Document m_doc{};
     bool m_has_doc = false;
     uint8_t m_mode = 0; // 0=TECH, 1=DSGN
@@ -154,8 +179,15 @@ private:
         });
 
         // Search
-        m_search.set_placeholder_text("Search docs...");
+        m_search.set_placeholder_text("Search docs...  (Ctrl+F)");
         m_search.add_css_class("search-entry");
+        m_search.signal_search_changed().connect([this]() {
+            auto raw = m_search.get_text();
+            m_search_text.clear();
+            for (auto ch : raw) m_search_text += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+            if (m_filter_model) m_filter_model->refilter();
+            if (!m_search_text.empty()) expand_matching_rows();
+        });
         header->pack_end(m_search);
 
         // Main layout: Paned
@@ -169,21 +201,25 @@ private:
         sidebar_scroll->set_policy(Gtk::PolicyType::NEVER, Gtk::PolicyType::AUTOMATIC);
 
         m_tree_store = Gtk::TreeStore::create(m_columns);
-        m_tree_view.set_model(m_tree_store);
+        m_filter_model = Gtk::TreeModelFilter::create(m_tree_store);
+        m_filter_model->set_visible_func([this](const Gtk::TreeModel::const_iterator& iter) -> bool {
+            return filter_row(iter);
+        });
+        m_tree_view.set_model(m_filter_model);
         m_tree_view.set_headers_visible(false);
         m_tree_view.append_column("", m_columns.col_name);
         m_tree_view.set_activate_on_single_click(true);
 
         m_tree_view.signal_row_activated().connect(
-            [this](const Gtk::TreeModel::Path& path, Gtk::TreeViewColumn*) {
-                auto iter = m_tree_store->get_iter(path);
+            [this](const Gtk::TreeModel::Path& filter_path, Gtk::TreeViewColumn*) {
+                auto iter = m_filter_model->get_iter(filter_path);
                 if (!iter) return;
                 bool is_dir = (*iter)[m_columns.col_is_dir];
                 if (is_dir) {
-                    if (m_tree_view.row_expanded(path))
-                        m_tree_view.collapse_row(path);
+                    if (m_tree_view.row_expanded(filter_path))
+                        m_tree_view.collapse_row(filter_path);
                     else
-                        m_tree_view.expand_row(path, false);
+                        m_tree_view.expand_row(filter_path, false);
                 } else {
                     std::string file_path = static_cast<std::string>((*iter)[m_columns.col_path]);
                     open_file(file_path);
@@ -204,6 +240,109 @@ private:
 
         content_scroll->set_child(m_canvas);
         m_paned.set_end_child(*content_scroll);
+
+        // Keyboard shortcuts
+        auto key_ctrl = Gtk::EventControllerKey::create();
+        key_ctrl->signal_key_pressed().connect(
+            [this](guint keyval, guint, Gdk::ModifierType state) -> bool {
+                bool ctrl = (state & Gdk::ModifierType::CONTROL_MASK) != Gdk::ModifierType{};
+                if (ctrl && keyval == GDK_KEY_f) {
+                    m_search.grab_focus();
+                    return true;
+                }
+                if (keyval == GDK_KEY_Escape) {
+                    m_search.set_text("");
+                    m_tree_view.grab_focus();
+                    return true;
+                }
+                if (keyval == GDK_KEY_F5) {
+                    refresh_tree();
+                    return true;
+                }
+                return false;
+            }, false);
+        add_controller(key_ctrl);
+    }
+
+    // ── Search filter ───────────────────────────────────────────────
+
+    bool filter_row(const Gtk::TreeModel::const_iterator& iter) const {
+        if (m_search_text.empty()) return true;
+        // Directories visible if any child matches
+        bool is_dir = (*iter)[m_columns.col_is_dir];
+        Glib::ustring name = (*iter)[m_columns.col_name];
+        std::string lower;
+        for (auto ch : name) lower += static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+        if (lower.find(m_search_text) != std::string::npos) return true;
+        if (is_dir) {
+            auto children = iter->children();
+            for (auto child = children.begin(); child != children.end(); ++child) {
+                if (filter_row(child)) return true;
+            }
+        }
+        return false;
+    }
+
+    void expand_matching_rows() {
+        m_filter_model->foreach_iter([this](const Gtk::TreeModel::const_iterator& iter) -> bool {
+            bool is_dir = (*iter)[m_columns.col_is_dir];
+            if (is_dir) {
+                auto path = m_filter_model->get_path(iter);
+                m_tree_view.expand_row(path, false);
+            }
+            return false; // continue
+        });
+    }
+
+    // ── File watching ───────────────────────────────────────────────
+
+    void setup_file_monitor(const std::string& root) {
+        if (m_file_monitor) m_file_monitor->cancel();
+        auto dir = Gio::File::create_for_path(root);
+        m_file_monitor = dir->monitor_directory(Gio::FileMonitor::Flags::WATCH_MOVES);
+        m_file_monitor->signal_changed().connect(
+            [this](const Glib::RefPtr<Gio::File>&,
+                   const Glib::RefPtr<Gio::File>&,
+                   Gio::FileMonitor::Event) {
+                // Debounce: 500ms delay to batch rapid changes
+                if (m_reload_timer.connected()) m_reload_timer.disconnect();
+                m_reload_timer = Glib::signal_timeout().connect([this]() -> bool {
+                    refresh_tree();
+                    return false; // one-shot
+                }, 500);
+            });
+    }
+
+    void refresh_tree() {
+        if (m_root_path.empty()) return;
+        // Save expanded state
+        std::vector<std::string> expanded_paths;
+        m_filter_model->foreach_iter([this, &expanded_paths](const Gtk::TreeModel::const_iterator& iter) -> bool {
+            auto path = m_filter_model->get_path(iter);
+            if (m_tree_view.row_expanded(path)) {
+                std::string file_path = static_cast<std::string>((*iter)[m_columns.col_path]);
+                expanded_paths.push_back(file_path);
+            }
+            return false;
+        });
+        // Repopulate
+        populate_tree(m_root_path);
+        // Restore expanded state
+        m_filter_model->foreach_iter([this, &expanded_paths](const Gtk::TreeModel::const_iterator& iter) -> bool {
+            std::string file_path = static_cast<std::string>((*iter)[m_columns.col_path]);
+            for (const auto& ep : expanded_paths) {
+                if (ep == file_path) {
+                    auto path = m_filter_model->get_path(iter);
+                    m_tree_view.expand_row(path, false);
+                    break;
+                }
+            }
+            return false;
+        });
+        // Re-render current file if it changed on disk
+        if (!m_current_file.empty() && fs::exists(m_current_file)) {
+            open_file(m_current_file);
+        }
     }
 
     void populate_tree(const std::string& root) {
@@ -249,6 +388,7 @@ private:
         std::ostringstream ss;
         ss << file.rdbuf();
         m_content = ss.str();
+        m_current_file = path;
         set_title("ASE Viewer — " + fs::path(path).filename().string());
 
         // Parse markdown into AST
