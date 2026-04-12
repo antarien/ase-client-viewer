@@ -72,6 +72,7 @@ target_compile_features(viewer_core PUBLIC cxx_std_20)
 
 add_executable(ase-viewer
     src/main.cpp
+    src/render/vwr_rndr_text.cpp
 )
 
 target_link_libraries(ase-viewer
