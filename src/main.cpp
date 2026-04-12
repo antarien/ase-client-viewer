@@ -607,11 +607,15 @@ private:
 
 class ViewerApp : public Gtk::Application {
 public:
+    static Glib::RefPtr<ViewerApp> create() {
+        return Glib::make_refptr_for_instance<ViewerApp>(new ViewerApp());
+    }
+
+protected:
     ViewerApp()
         : Gtk::Application("com.antarien.ase.viewer",
                            Gio::Application::Flags::HANDLES_OPEN) {}
 
-protected:
     void on_startup() override {
         Gtk::Application::on_startup();
 
