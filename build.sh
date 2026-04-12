@@ -670,3 +670,5 @@ if [ "$DO_RUN" = true ]; then
         exit 1
     fi
 fi
+
+exit 0
