@@ -1,0 +1,313 @@
+#include "vwr_rndr_doc.hpp"
+#include "vwr_rndr_text.hpp"
+#include <ase/markdown/types.hpp>
+#include <cstring>
+
+namespace ase::viewer::render {
+
+namespace {
+
+// Heading colors (matching DocsViewer CSS vars)
+constexpr double H1_R = 0.88, H1_G = 0.88, H1_B = 0.88;  // #E0E0E0
+constexpr double H2_R = 0.75, H2_G = 0.75, H2_B = 0.75;  // #C0C0C0
+constexpr double H3_R = 0.63, H3_G = 0.63, H3_B = 0.63;  // #A0A0A0
+constexpr double H4_R = 0.54, H4_G = 0.60, H4_B = 0.60;  // #8A9A9A
+
+// Text colors
+constexpr double TEXT_R = 0.54, TEXT_G = 0.60, TEXT_B = 0.60;  // TEXT_PRIMARY
+constexpr double MUTED_R = 0.35, MUTED_G = 0.35, MUTED_B = 0.35;  // TEXT_LABEL
+constexpr double LINK_R = 0.35, LINK_G = 0.61, LINK_B = 0.72;  // PANEL_CYAN
+constexpr double CODE_BG_R = 0.047, CODE_BG_G = 0.047, CODE_BG_B = 0.047;  // SURFACE_1_CODE
+
+// Callout colors
+constexpr double INFO_R = 0.35, INFO_G = 0.61, INFO_B = 0.72;     // cyan
+constexpr double WARN_R = 0.82, WARN_G = 0.60, WARN_B = 0.13;     // amber
+constexpr double TIP_R  = 0.25, TIP_G  = 0.73, TIP_B  = 0.31;     // green
+constexpr double NOTE_R = 0.65, NOTE_G = 0.55, NOTE_B = 0.98;     // purple
+
+// Spacing
+constexpr double PARA_SPACING   = 10.0;
+constexpr double HEAD_SPACING_T = 24.0;
+constexpr double HEAD_SPACING_B = 8.0;
+constexpr double CODE_PADDING   = 8.0;
+constexpr double LIST_INDENT    = 20.0;
+constexpr double HR_SPACING     = 16.0;
+constexpr double CALLOUT_PAD    = 12.0;
+
+void set_heading_color(const Cairo::RefPtr<Cairo::Context>& cr, uint8_t level) {
+    switch (level) {
+        case 1: cr->set_source_rgb(H1_R, H1_G, H1_B); break;
+        case 2: cr->set_source_rgb(H2_R, H2_G, H2_B); break;
+        case 3: cr->set_source_rgb(H3_R, H3_G, H3_B); break;
+        default: cr->set_source_rgb(H4_R, H4_G, H4_B); break;
+    }
+}
+
+void set_callout_color(const Cairo::RefPtr<Cairo::Context>& cr, uint8_t type) {
+    switch (type) {
+        case ase::markdown::CALLOUT_INFO:    cr->set_source_rgb(INFO_R, INFO_G, INFO_B); break;
+        case ase::markdown::CALLOUT_WARNING: cr->set_source_rgb(WARN_R, WARN_G, WARN_B); break;
+        case ase::markdown::CALLOUT_TIP:     cr->set_source_rgb(TIP_R, TIP_G, TIP_B); break;
+        case ase::markdown::CALLOUT_NOTE:    cr->set_source_rgb(NOTE_R, NOTE_G, NOTE_B); break;
+        default: cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B); break;
+    }
+}
+
+// Collect all text content from a node subtree
+void collect_text(const ase::markdown::Node* node, std::string& out) {
+    if (!node) return;
+    if (node->text && node->text_len > 0) {
+        out.append(node->text, node->text_len);
+    }
+    const ase::markdown::Node* child = node->first_child;
+    while (child) {
+        collect_text(child, out);
+        child = child->next_sibling;
+    }
+}
+
+}  // anonymous namespace
+
+void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
+    if (!node) return;
+    using namespace ase::markdown;
+
+    int content_width = ctx.width - ctx.margin_left - ctx.margin_right;
+
+    switch (node->type) {
+        case NODE_HEADING: {
+            ctx.y += HEAD_SPACING_T;
+            auto layout = create_heading_layout(ctx.cr, content_width, node->heading_level);
+            std::string text;
+            collect_text(node, text);
+            layout->set_text(text);
+            set_heading_color(ctx.cr, node->heading_level);
+            draw_layout(ctx.cr, layout, ctx.margin_left, ctx.y);
+            int w = 0, h = 0;
+            layout->get_pixel_size(w, h);
+            ctx.y += h + HEAD_SPACING_B;
+
+            // H1 bottom border
+            if (node->heading_level == 1) {
+                ctx.cr->set_source_rgba(1, 1, 1, 0.05);
+                ctx.cr->move_to(ctx.margin_left, ctx.y);
+                ctx.cr->line_to(ctx.width - ctx.margin_right, ctx.y);
+                ctx.cr->stroke();
+                ctx.y += 8;
+            }
+            break;
+        }
+
+        case NODE_PARAGRAPH: {
+            auto layout = create_body_layout(ctx.cr, content_width);
+            std::string text;
+            collect_text(node, text);
+            layout->set_text(text);
+            ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+            draw_layout(ctx.cr, layout, ctx.margin_left, ctx.y);
+            int w = 0, h = 0;
+            layout->get_pixel_size(w, h);
+            ctx.y += h + PARA_SPACING;
+            break;
+        }
+
+        case NODE_CODE_BLOCK:
+        case NODE_MERMAID_BLOCK:
+        case NODE_DIFF_BLOCK:
+        case NODE_SVGBOB_BLOCK:
+        case NODE_ASEMATH_BLOCK: {
+            ctx.y += 4;
+            // Background rect
+            auto layout = create_code_layout(ctx.cr, content_width - 2 * static_cast<int>(CODE_PADDING));
+            std::string text;
+            if (node->text && node->text_len > 0) text.assign(node->text, node->text_len);
+            layout->set_text(text);
+            int w = 0, h = 0;
+            layout->get_pixel_size(w, h);
+
+            ctx.cr->set_source_rgb(CODE_BG_R, CODE_BG_G, CODE_BG_B);
+            ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, h + 2 * CODE_PADDING);
+            ctx.cr->fill();
+
+            // Language label
+            if (node->language) {
+                ctx.cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B);
+                ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+                ctx.cr->set_font_size(9);
+                ctx.cr->move_to(ctx.margin_left + CODE_PADDING, ctx.y + 12);
+                ctx.cr->show_text(node->language);
+                ctx.y += 16;
+            }
+
+            ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+            draw_layout(ctx.cr, layout, ctx.margin_left + CODE_PADDING, ctx.y + CODE_PADDING);
+            ctx.y += h + 2 * CODE_PADDING + PARA_SPACING;
+            break;
+        }
+
+        case NODE_CALLOUT: {
+            ctx.y += 4;
+            // Collect callout content
+            std::string text;
+            collect_text(node, text);
+            auto layout = create_body_layout(ctx.cr, content_width - 28);
+            layout->set_text(text);
+            int w = 0, h = 0;
+            layout->get_pixel_size(w, h);
+
+            // Background tint
+            set_callout_color(ctx.cr, node->callout_type);
+            double r, g, b;
+            ctx.cr->get_source_rgba(r, g, b, r);
+            ctx.cr->set_source_rgba(r, g, b, 0.08);
+            ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, h + 2 * CALLOUT_PAD);
+            ctx.cr->fill();
+
+            // Left border
+            set_callout_color(ctx.cr, node->callout_type);
+            ctx.cr->set_line_width(3);
+            ctx.cr->move_to(ctx.margin_left, ctx.y);
+            ctx.cr->line_to(ctx.margin_left, ctx.y + h + 2 * CALLOUT_PAD);
+            ctx.cr->stroke();
+
+            // Text
+            ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+            draw_layout(ctx.cr, layout, ctx.margin_left + 16, ctx.y + CALLOUT_PAD);
+            ctx.y += h + 2 * CALLOUT_PAD + PARA_SPACING;
+            break;
+        }
+
+        case NODE_LIST: {
+            const ase::markdown::Node* item = node->first_child;
+            int index = node->list_start;
+            while (item) {
+                std::string text;
+                collect_text(item, text);
+                auto layout = create_body_layout(ctx.cr, content_width - static_cast<int>(LIST_INDENT));
+                layout->set_text(text);
+                ctx.cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B);
+                ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+                ctx.cr->set_font_size(11);
+                ctx.cr->move_to(ctx.margin_left, ctx.y + 2);
+                if (node->list_ordered) {
+                    ctx.cr->show_text(std::to_string(index++) + ".");
+                } else {
+                    ctx.cr->show_text("\xe2\x86\x92"); // →
+                }
+                ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+                draw_layout(ctx.cr, layout, ctx.margin_left + LIST_INDENT, ctx.y);
+                int w = 0, h = 0;
+                layout->get_pixel_size(w, h);
+                ctx.y += h + 2;
+                item = item->next_sibling;
+            }
+            ctx.y += PARA_SPACING;
+            break;
+        }
+
+        case NODE_BLOCKQUOTE: {
+            ctx.y += 4;
+            std::string text;
+            collect_text(node, text);
+            auto layout = create_body_layout(ctx.cr, content_width - 20);
+            layout->set_text(text);
+            int w = 0, h = 0;
+            layout->get_pixel_size(w, h);
+
+            // Background
+            ctx.cr->set_source_rgba(1, 1, 1, 0.02);
+            ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, h + 16);
+            ctx.cr->fill();
+
+            // Left border
+            ctx.cr->set_source_rgba(1, 1, 1, 0.08);
+            ctx.cr->set_line_width(2);
+            ctx.cr->move_to(ctx.margin_left, ctx.y);
+            ctx.cr->line_to(ctx.margin_left, ctx.y + h + 16);
+            ctx.cr->stroke();
+
+            ctx.cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B);
+            draw_layout(ctx.cr, layout, ctx.margin_left + 12, ctx.y + 8);
+            ctx.y += h + 16 + PARA_SPACING;
+            break;
+        }
+
+        case NODE_THEMATIC_BREAK: {
+            ctx.y += HR_SPACING;
+            ctx.cr->set_source_rgba(1, 1, 1, 0.05);
+            ctx.cr->move_to(ctx.margin_left, ctx.y);
+            ctx.cr->line_to(ctx.width - ctx.margin_right, ctx.y);
+            ctx.cr->stroke();
+            ctx.y += HR_SPACING;
+            break;
+        }
+
+        case NODE_TABLE: {
+            // Simple table rendering: iterate rows and cells
+            const ase::markdown::Node* row = node->first_child;
+            bool is_header = true;
+            while (row) {
+                const ase::markdown::Node* cell = row->first_child;
+                double x = ctx.margin_left;
+                int cell_count = 0;
+                const ase::markdown::Node* c = cell;
+                while (c) { cell_count++; c = c->next_sibling; }
+                int cell_width = cell_count > 0 ? content_width / cell_count : content_width;
+
+                while (cell) {
+                    std::string text;
+                    collect_text(cell, text);
+                    auto layout = create_body_layout(ctx.cr, cell_width - 8);
+                    if (is_header) {
+                        auto fd = layout->get_font_description();
+                        fd.set_weight(Pango::Weight::BOLD);
+                        layout->set_font_description(fd);
+                    }
+                    layout->set_text(text);
+
+                    if (is_header) ctx.cr->set_source_rgb(H3_R, H3_G, H3_B);
+                    else ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+
+                    draw_layout(ctx.cr, layout, x + 4, ctx.y + 4);
+
+                    // Cell border
+                    ctx.cr->set_source_rgba(1, 1, 1, 0.05);
+                    ctx.cr->rectangle(x, ctx.y, cell_width, 24);
+                    ctx.cr->stroke();
+
+                    x += cell_width;
+                    cell = cell->next_sibling;
+                }
+                ctx.y += 24;
+                is_header = false;
+                row = row->next_sibling;
+            }
+            ctx.y += PARA_SPACING;
+            break;
+        }
+
+        default: {
+            // For unhandled container nodes, recurse into children
+            const ase::markdown::Node* child = node->first_child;
+            while (child) {
+                render_node(ctx, child);
+                child = child->next_sibling;
+            }
+            break;
+        }
+    }
+}
+
+double render_document(RenderContext& ctx, const ase::markdown::Document& doc) {
+    ctx.y = ctx.margin_top;
+    if (doc.root) {
+        const ase::markdown::Node* child = doc.root->first_child;
+        while (child) {
+            render_node(ctx, child);
+            child = child->next_sibling;
+        }
+    }
+    return ctx.y + ctx.margin_top;
+}
+
+}  // namespace ase::viewer::render

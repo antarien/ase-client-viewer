@@ -11,6 +11,8 @@
 
 #include <gtkmm.h>
 #include <viewer/engine.hpp>
+#include <ase/markdown/markdown.hpp>
+#include "render/vwr_rndr_doc.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -118,8 +120,10 @@ private:
     Gtk::Paned m_paned{Gtk::Orientation::HORIZONTAL};
     Gtk::SearchEntry m_search;
 
-    // Current document content
+    // Current document
     std::string m_content;
+    ase::markdown::Document m_doc{};
+    bool m_has_doc = false;
     uint8_t m_mode = 0; // 0=TECH, 1=DSGN
 
     void build_ui() {
@@ -247,46 +251,42 @@ private:
         m_content = ss.str();
         set_title("ASE Viewer — " + fs::path(path).filename().string());
 
-        // Trigger redraw with new content
-        m_canvas.set_content_height(static_cast<int>(m_content.size() / 2));
+        // Parse markdown into AST
+        if (m_has_doc) ase::markdown::free_document(m_doc);
+        ase::markdown::ParseOptions opts{};
+        opts.mode = m_mode;
+        opts.parse_frontmatter = 1;
+        m_doc = ase::markdown::parse(m_content.c_str(), static_cast<uint32_t>(m_content.size()), opts);
+        m_has_doc = true;
+
         m_canvas.queue_draw();
     }
 
     void on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int width, int height) {
         (void)height;
 
-        if (m_content.empty()) {
+        if (!m_has_doc) {
             // Welcome screen
-            cr->set_source_rgb(0.35, 0.61, 0.72); // PANEL_CYAN
+            cr->set_source_rgb(0.35, 0.61, 0.72);
             cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::BOLD);
             cr->set_font_size(14);
             cr->move_to(width / 2.0 - 120, 200);
             cr->show_text("ASE TECH & DESIGN Viewer");
 
-            cr->set_source_rgb(0.35, 0.35, 0.35); // TEXT_LABEL
+            cr->set_source_rgb(0.35, 0.35, 0.35);
             cr->set_font_size(11);
             cr->move_to(width / 2.0 - 100, 230);
             cr->show_text("Select a document from the sidebar");
             return;
         }
 
-        // Placeholder: render raw text (proper AST rendering in Phase 4)
-        cr->set_source_rgb(0.54, 0.60, 0.60); // TEXT_PRIMARY
-        cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
-        cr->set_font_size(11);
-
-        double y = 24;
-        double line_height = 16;
-        std::istringstream stream(m_content);
-        std::string line;
-        while (std::getline(stream, line)) {
-            if (y > 10000) break;
-            cr->move_to(16, y);
-            cr->show_text(line);
-            y += line_height;
-        }
-
-        m_canvas.set_content_height(static_cast<int>(y + 24));
+        // Render AST via document renderer
+        render::RenderContext ctx;
+        ctx.cr = cr;
+        ctx.width = width;
+        ctx.viewport_h = height;
+        double total_height = render::render_document(ctx, m_doc);
+        m_canvas.set_content_height(static_cast<int>(total_height));
     }
 };
 
