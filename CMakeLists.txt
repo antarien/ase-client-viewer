@@ -70,14 +70,27 @@ target_compile_features(viewer_core PUBLIC cxx_std_20)
 
 # ── Desktop Executable ───────────────────────────────────────────────
 
+# ── Link ase-markdown (L1) ───────────────────────────────────────────
+
+if(NOT TARGET ase::markdown)
+    set(ASE_CORE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../core)
+    add_subdirectory(${ASE_CORE_PATH}/ase-markdown ${CMAKE_BINARY_DIR}/_deps/ase-markdown-build)
+endif()
+
+# ── Desktop Executable ───────────────────────────────────────────────
+
 add_executable(ase-viewer
     src/main.cpp
     src/render/vwr_rndr_text.cpp
+    src/render/vwr_rndr_doc.cpp
 )
+
+target_include_directories(ase-viewer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 target_link_libraries(ase-viewer
     PRIVATE
         viewer_core
+        ase::markdown
         PkgConfig::GTKMM
 )
 
