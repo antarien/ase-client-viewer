@@ -49,6 +49,7 @@ message(STATUS "Configuring ${PROJECT_NAME} v${PROJECT_VERSION}")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GTKMM REQUIRED IMPORTED_TARGET gtkmm-4.0)
+pkg_check_modules(LIBADW REQUIRED IMPORTED_TARGET libadwaita-1)
 
 # ── Core Library (platform-agnostic) ─────────────────────────────────
 
@@ -81,6 +82,8 @@ endif()
 
 add_executable(ase-viewer
     src/main.cpp
+    src/vwr_settings.cpp
+    src/vwr_preferences.cpp
     src/render/vwr_rndr_text.cpp
     src/render/vwr_rndr_doc.cpp
     src/render/vwr_rndr_synt.cpp
@@ -93,6 +96,7 @@ target_link_libraries(ase-viewer
         viewer_core
         ase::markdown
         PkgConfig::GTKMM
+        PkgConfig::LIBADW
 )
 
 set_target_properties(ase-viewer PROPERTIES

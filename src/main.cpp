@@ -14,6 +14,8 @@
 #include <viewer/engine.hpp>
 #include <ase/markdown/markdown.hpp>
 #include "render/vwr_rndr_doc.hpp"
+#include "vwr_settings.hpp"
+#include "vwr_preferences.hpp"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -151,9 +153,10 @@ private:
     Glib::RefPtr<Gio::FileMonitor> m_file_monitor;
     sigc::connection m_reload_timer;
 
-    // Read tracking
+    // Read tracking + settings
     std::set<std::string> m_read_files;
     std::string m_config_dir;
+    ase::viewer::ViewerSettings m_settings;
 
     // Current document
     std::string m_content;
@@ -169,6 +172,8 @@ private:
                            : std::string(std::getenv("HOME")) + "/.config/ase-viewer";
         fs::create_directories(m_config_dir);
         load_read_state();
+        m_settings = ase::viewer::load_settings(m_config_dir);
+        m_mode = m_settings.default_mode;
 
         // HeaderBar
         auto header = Gtk::make_managed<Gtk::HeaderBar>();
@@ -216,6 +221,15 @@ private:
             mark_all_read();
         });
         header->pack_end(*btn_mark_read);
+
+        // Settings button (gear icon)
+        auto btn_settings = Gtk::make_managed<Gtk::Button>("\xe2\x9a\x99"); // ⚙
+        btn_settings->set_tooltip_text("Settings (Ctrl+,)");
+        btn_settings->add_css_class("mode-button");
+        btn_settings->signal_clicked().connect([this]() {
+            open_settings();
+        });
+        header->pack_end(*btn_settings);
 
         // Main layout: Paned
         m_paned.set_position(280);
@@ -288,6 +302,10 @@ private:
                 }
                 if (keyval == GDK_KEY_F5) {
                     refresh_tree();
+                    return true;
+                }
+                if (ctrl && keyval == GDK_KEY_comma) {
+                    open_settings();
                     return true;
                 }
                 return false;
@@ -387,6 +405,12 @@ private:
         for (const auto& p : m_read_files) {
             f << p << '\n';
         }
+    }
+
+    void open_settings() {
+        ase::viewer::show_preferences_window(*this, m_settings, m_config_dir, [this]() {
+            m_canvas.queue_draw();
+        });
     }
 
     // ── File watching ───────────────────────────────────────────────
