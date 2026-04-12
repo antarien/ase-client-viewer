@@ -1,0 +1,20 @@
+# ==============================================================================
+# ASE - Antares Simulation Engine
+# Version Registry (SSOT - Single Source of Truth)
+# ==============================================================================
+#
+# VERSION FORMAT: MM.mm.pp.BBBBB (e.g., 00.02.14.00127)
+#   MM    = MAJOR (manual, 00 until 1.0 release)
+#   mm    = MINOR (commits / 50)
+#   pp    = PATCH (commits % 50)
+#   BBBBB = BUILD (total commits)
+#
+# ==============================================================================
+
+ASE_CLIENT_VIEWER=00.00.01.00001
+ASE_CLIENT_VIEWER_NAME=TECH & DESIGN Viewer
+ASE_CLIENT_VIEWER_DESC=Native GTK4 markdown documentation viewer with ECS architecture
+ASE_CLIENT_VIEWER_LAYER=5
+ASE_CLIENT_VIEWER_STATUS=stub
+ASE_CLIENT_VIEWER_CREATED=2026-04-12
+ASE_CLIENT_VIEWER_UPDATED=2026-04-12
