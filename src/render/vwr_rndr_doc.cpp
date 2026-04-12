@@ -2,6 +2,8 @@
 #include "vwr_rndr_text.hpp"
 #include <ase/markdown/types.hpp>
 #include <cstring>
+#include <sstream>
+#include <vector>
 
 namespace ase::viewer::render {
 
@@ -111,13 +113,8 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
             break;
         }
 
-        case NODE_CODE_BLOCK:
-        case NODE_MERMAID_BLOCK:
-        case NODE_DIFF_BLOCK:
-        case NODE_SVGBOB_BLOCK:
-        case NODE_ASEMATH_BLOCK: {
+        case NODE_CODE_BLOCK: {
             ctx.y += 4;
-            // Background rect
             auto layout = create_code_layout(ctx.cr, content_width - 2 * static_cast<int>(CODE_PADDING));
             std::string text;
             if (node->text && node->text_len > 0) text.assign(node->text, node->text_len);
@@ -129,7 +126,6 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
             ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, h + 2 * CODE_PADDING);
             ctx.cr->fill();
 
-            // Language label
             if (node->language) {
                 ctx.cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B);
                 ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
@@ -142,6 +138,92 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
             ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
             draw_layout(ctx.cr, layout, ctx.margin_left + CODE_PADDING, ctx.y + CODE_PADDING);
             ctx.y += h + 2 * CODE_PADDING + PARA_SPACING;
+            break;
+        }
+
+        case NODE_DIFF_BLOCK: {
+            ctx.y += 4;
+            std::string text;
+            if (node->text && node->text_len > 0) text.assign(node->text, node->text_len);
+
+            // Background
+            ctx.cr->set_source_rgb(CODE_BG_R, CODE_BG_G, CODE_BG_B);
+            double line_h = 16.0;
+            int line_count = 1;
+            for (char c : text) if (c == '\n') line_count++;
+            double block_h = line_count * line_h + 2 * CODE_PADDING;
+            ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, block_h);
+            ctx.cr->fill();
+
+            // Render line by line with diff coloring
+            double ly = ctx.y + CODE_PADDING;
+            std::istringstream stream(text);
+            std::string line;
+            while (std::getline(stream, line)) {
+                // Line background based on prefix
+                if (!line.empty()) {
+                    if (line[0] == '+') {
+                        ctx.cr->set_source_rgba(0.25, 0.73, 0.31, 0.12);
+                        ctx.cr->rectangle(ctx.margin_left, ly - 1, content_width, line_h);
+                        ctx.cr->fill();
+                        ctx.cr->set_source_rgb(0.25, 0.73, 0.31);
+                    } else if (line[0] == '-') {
+                        ctx.cr->set_source_rgba(0.97, 0.32, 0.29, 0.12);
+                        ctx.cr->rectangle(ctx.margin_left, ly - 1, content_width, line_h);
+                        ctx.cr->fill();
+                        ctx.cr->set_source_rgb(0.97, 0.32, 0.29);
+                    } else if (line.size() >= 2 && line[0] == '-' && line[1] == '>') {
+                        ctx.cr->set_source_rgba(0.35, 0.61, 0.72, 0.12);
+                        ctx.cr->rectangle(ctx.margin_left, ly - 1, content_width, line_h);
+                        ctx.cr->fill();
+                        ctx.cr->set_source_rgb(0.35, 0.61, 0.72);
+                    } else if (line[0] == '[') {
+                        ctx.cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B);
+                    } else {
+                        ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+                    }
+                }
+
+                ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+                ctx.cr->set_font_size(10);
+                ctx.cr->move_to(ctx.margin_left + CODE_PADDING, ly + 11);
+                ctx.cr->show_text(line);
+                ly += line_h;
+            }
+            ctx.y += block_h + PARA_SPACING;
+            break;
+        }
+
+        case NODE_MERMAID_BLOCK:
+        case NODE_SVGBOB_BLOCK:
+        case NODE_ASEMATH_BLOCK: {
+            // Placeholder box until Graphviz/MicroTeX/muparser integration
+            ctx.y += 4;
+            double box_h = 80;
+            ctx.cr->set_source_rgb(CODE_BG_R, CODE_BG_G, CODE_BG_B);
+            ctx.cr->rectangle(ctx.margin_left, ctx.y, content_width, box_h);
+            ctx.cr->fill();
+
+            // Dashed border
+            ctx.cr->set_source_rgba(LINK_R, LINK_G, LINK_B, 0.3);
+            ctx.cr->set_line_width(1);
+            std::vector<double> dashes = {4.0, 4.0};
+            ctx.cr->set_dash(dashes, 0);
+            ctx.cr->rectangle(ctx.margin_left + 1, ctx.y + 1, content_width - 2, box_h - 2);
+            ctx.cr->stroke();
+            ctx.cr->unset_dash();
+
+            // Label
+            const char* label = "mermaid";
+            if (node->type == NODE_SVGBOB_BLOCK) label = "svgbob";
+            else if (node->type == NODE_ASEMATH_BLOCK) label = "ase-math";
+            ctx.cr->set_source_rgb(LINK_R, LINK_G, LINK_B);
+            ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+            ctx.cr->set_font_size(11);
+            ctx.cr->move_to(ctx.margin_left + content_width / 2.0 - 30, ctx.y + box_h / 2.0 + 4);
+            ctx.cr->show_text(label);
+
+            ctx.y += box_h + PARA_SPACING;
             break;
         }
 
