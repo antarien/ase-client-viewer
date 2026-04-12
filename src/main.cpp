@@ -99,6 +99,14 @@ static const char* CSS_DARK = R"(
         color: #5A5A5A;
         min-height: 18px;
     }
+    progressbar trough {
+        background-color: #121212;
+        min-height: 4px;
+    }
+    progressbar progress {
+        background-color: #5a9cb8;
+        min-height: 4px;
+    }
 )";
 
 // ── File Tree Model ─────────────────────────────────────────────────
@@ -147,6 +155,8 @@ private:
     Gtk::DrawingArea m_canvas;
     Gtk::Paned m_paned{Gtk::Orientation::HORIZONTAL};
     Gtk::SearchEntry m_search;
+    Gtk::ProgressBar m_progress;
+    Gtk::Label m_status_label;
     std::string m_search_text;
 
     // File watching
@@ -231,10 +241,27 @@ private:
         });
         header->pack_end(*btn_settings);
 
-        // Main layout: Paned
+        // Main layout: VBox → Paned + StatusBar
+        auto main_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::VERTICAL, 0);
         m_paned.set_position(280);
         m_paned.set_shrink_start_child(false);
-        set_child(m_paned);
+        m_paned.set_vexpand(true);
+        main_box->append(m_paned);
+
+        // Status bar
+        auto status_box = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 8);
+        status_box->add_css_class("status-bar");
+        m_status_label.set_text("No document");
+        m_status_label.set_hexpand(true);
+        m_status_label.set_xalign(0);
+        status_box->append(m_status_label);
+        m_progress.set_fraction(0);
+        m_progress.set_valign(Gtk::Align::CENTER);
+        m_progress.set_size_request(120, 4);
+        status_box->append(m_progress);
+        main_box->append(*status_box);
+
+        set_child(*main_box);
 
         // Sidebar
         auto sidebar_scroll = Gtk::make_managed<Gtk::ScrolledWindow>();
@@ -526,6 +553,24 @@ private:
         opts.parse_frontmatter = 1;
         m_doc = ase::markdown::parse(m_content.c_str(), static_cast<uint32_t>(m_content.size()), opts);
         m_has_doc = true;
+
+        // Update status bar
+        int word_count = 0;
+        bool in_word = false;
+        for (char c : m_content) {
+            if (std::isalnum(static_cast<unsigned char>(c))) {
+                if (!in_word) { word_count++; in_word = true; }
+            } else {
+                in_word = false;
+            }
+        }
+        int read_min = (word_count + 199) / 200; // ~200 wpm
+        std::string mode_str = m_mode == 0 ? "TECH" : "DSGN";
+        m_status_label.set_text(
+            fs::path(path).filename().string() + "  |  " +
+            std::to_string(word_count) + " words  |  ~" +
+            std::to_string(read_min) + " min read  |  " + mode_str);
+        m_progress.set_fraction(0);
 
         m_canvas.queue_draw();
     }
