@@ -83,6 +83,7 @@ add_executable(ase-viewer
     src/main.cpp
     src/render/vwr_rndr_text.cpp
     src/render/vwr_rndr_doc.cpp
+    src/render/vwr_rndr_synt.cpp
 )
 
 target_include_directories(ase-viewer PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
