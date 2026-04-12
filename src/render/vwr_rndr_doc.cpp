@@ -1,5 +1,6 @@
 #include "vwr_rndr_doc.hpp"
 #include "vwr_rndr_text.hpp"
+#include "dsl/vwr_dsl_dispatch.hpp"
 #include <ase/markdown/types.hpp>
 #include <cstring>
 #include <sstream>
@@ -365,6 +366,72 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
                 row = row->next_sibling;
             }
             ctx.y += PARA_SPACING;
+            break;
+        }
+
+        case NODE_BLOCK_DIRECTIVE:
+        case NODE_LEAF_DIRECTIVE:
+        case NODE_TEXT_DIRECTIVE: {
+            dsl::render_directive(ctx, node);
+            break;
+        }
+
+        case NODE_WIKI_LINK: {
+            // [[Wiki Link]] — rendered as clickable cyan text
+            std::string text;
+            collect_text(node, text);
+            ctx.cr->set_source_rgb(LINK_R, LINK_G, LINK_B);
+            ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+            ctx.cr->set_font_size(11);
+            ctx.cr->move_to(ctx.margin_left, ctx.y + 14);
+            ctx.cr->show_text("[[" + text + "]]");
+            ctx.y += 20;
+            break;
+        }
+
+        case NODE_GLOSSARY_TERM: {
+            // {{Glossary}} — rendered with dotted underline
+            std::string text;
+            collect_text(node, text);
+            ctx.cr->set_source_rgb(0.65, 0.55, 0.98);
+            ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+            ctx.cr->set_font_size(11);
+            ctx.cr->move_to(ctx.margin_left, ctx.y + 14);
+            ctx.cr->show_text(text);
+            // Dotted underline
+            std::vector<double> dots = {2.0, 2.0};
+            ctx.cr->set_dash(dots, 0);
+            ctx.cr->set_line_width(1);
+            ctx.cr->move_to(ctx.margin_left, ctx.y + 17);
+            ctx.cr->line_to(ctx.margin_left + text.size() * 7, ctx.y + 17);
+            ctx.cr->stroke();
+            ctx.cr->unset_dash();
+            ctx.y += 20;
+            break;
+        }
+
+        case NODE_CROSS_REF: {
+            // {ref:path#anchor} — cyan link
+            std::string text;
+            if (node->url) text = node->url;
+            else collect_text(node, text);
+            ctx.cr->set_source_rgb(LINK_R, LINK_G, LINK_B);
+            ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+            ctx.cr->set_font_size(10);
+            ctx.cr->move_to(ctx.margin_left, ctx.y + 14);
+            ctx.cr->show_text("\xe2\x86\x92 " + text); // → ref
+            ctx.y += 20;
+            break;
+        }
+
+        case NODE_VERSION_INSERT: {
+            // {version} — inline version placeholder
+            ctx.cr->set_source_rgba(LINK_R, LINK_G, LINK_B, 0.6);
+            ctx.cr->select_font_face("Fira Code", Cairo::ToyFontFace::Slant::NORMAL, Cairo::ToyFontFace::Weight::NORMAL);
+            ctx.cr->set_font_size(9);
+            ctx.cr->move_to(ctx.margin_left, ctx.y + 12);
+            ctx.cr->show_text("{version}");
+            ctx.y += 18;
             break;
         }
 
