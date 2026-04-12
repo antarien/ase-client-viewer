@@ -19,6 +19,8 @@
 #include <sstream>
 #include <algorithm>
 #include <cctype>
+#include <set>
+#include <cstdlib>
 #include <gdk/gdkkeysyms.h>
 
 namespace fs = std::filesystem;
@@ -83,6 +85,9 @@ static const char* CSS_DARK = R"(
     .search-entry:focus {
         border-color: #5a9cb8;
     }
+    .sidebar treeview row:hover {
+        background-color: rgba(90, 156, 184, 0.06);
+    }
     .status-bar {
         background-color: #0A0A0A;
         border-top: 1px solid rgba(255, 255, 255, 0.03);
@@ -98,10 +103,12 @@ static const char* CSS_DARK = R"(
 
 class FileTreeColumns : public Gtk::TreeModelColumnRecord {
 public:
-    FileTreeColumns() { add(col_name); add(col_path); add(col_is_dir); }
-    Gtk::TreeModelColumn<Glib::ustring> col_name;
+    FileTreeColumns() { add(col_display); add(col_name); add(col_path); add(col_is_dir); add(col_is_read); }
+    Gtk::TreeModelColumn<Glib::ustring> col_display; // rendered text (name + badges)
+    Gtk::TreeModelColumn<Glib::ustring> col_name;    // raw filename
     Gtk::TreeModelColumn<std::string> col_path;
     Gtk::TreeModelColumn<bool> col_is_dir;
+    Gtk::TreeModelColumn<bool> col_is_read;
 };
 
 // ── ViewerWindow ────────────────────────────────────────────────────
@@ -144,6 +151,10 @@ private:
     Glib::RefPtr<Gio::FileMonitor> m_file_monitor;
     sigc::connection m_reload_timer;
 
+    // Read tracking
+    std::set<std::string> m_read_files;
+    std::string m_config_dir;
+
     // Current document
     std::string m_content;
     std::string m_current_file;
@@ -152,6 +163,13 @@ private:
     uint8_t m_mode = 0; // 0=TECH, 1=DSGN
 
     void build_ui() {
+        // XDG config directory
+        const char* xdg = std::getenv("XDG_CONFIG_HOME");
+        m_config_dir = xdg ? std::string(xdg) + "/ase-viewer"
+                           : std::string(std::getenv("HOME")) + "/.config/ase-viewer";
+        fs::create_directories(m_config_dir);
+        load_read_state();
+
         // HeaderBar
         auto header = Gtk::make_managed<Gtk::HeaderBar>();
         set_titlebar(*header);
@@ -190,6 +208,15 @@ private:
         });
         header->pack_end(m_search);
 
+        // Mark-All-Read button
+        auto btn_mark_read = Gtk::make_managed<Gtk::Button>("\xe2\x9c\x93"); // ✓
+        btn_mark_read->set_tooltip_text("Mark all as read");
+        btn_mark_read->add_css_class("mode-button");
+        btn_mark_read->signal_clicked().connect([this]() {
+            mark_all_read();
+        });
+        header->pack_end(*btn_mark_read);
+
         // Main layout: Paned
         m_paned.set_position(280);
         m_paned.set_shrink_start_child(false);
@@ -207,7 +234,11 @@ private:
         });
         m_tree_view.set_model(m_filter_model);
         m_tree_view.set_headers_visible(false);
-        m_tree_view.append_column("", m_columns.col_name);
+        auto* col = Gtk::make_managed<Gtk::TreeViewColumn>("");
+        auto* cell = Gtk::make_managed<Gtk::CellRendererText>();
+        col->pack_start(*cell, true);
+        col->add_attribute(cell->property_markup(), m_columns.col_display);
+        m_tree_view.append_column(*col);
         m_tree_view.set_activate_on_single_click(true);
 
         m_tree_view.signal_row_activated().connect(
@@ -294,6 +325,70 @@ private:
         });
     }
 
+    // ── Read tracking ─────────────────────────────────────────────
+
+    static Glib::ustring format_display(const std::string& name, bool is_dir, bool is_read) {
+        // Pango markup: unread files are bright, read files are dimmed
+        if (is_dir) {
+            return Glib::ustring::compose("<span foreground='#5A5A5A'>%1</span>",
+                Glib::Markup::escape_text(name));
+        }
+        if (is_read) {
+            return Glib::ustring::compose("<span foreground='#3A3A3A'>%1</span>",
+                Glib::Markup::escape_text(name));
+        }
+        // Unread: bright cyan dot + white text
+        return Glib::ustring::compose(
+            "<span foreground='#5a9cb8'>\xe2\x97\x8f </span><span foreground='#8A9A9A'>%1</span>",
+            Glib::Markup::escape_text(name));
+    }
+
+    void update_tree_display(const std::string& file_path) {
+        m_tree_store->foreach_iter([this, &file_path](const Gtk::TreeModel::iterator& iter) -> bool {
+            std::string path = static_cast<std::string>((*iter)[m_columns.col_path]);
+            if (path == file_path) {
+                Glib::ustring name = (*iter)[m_columns.col_name];
+                (*iter)[m_columns.col_is_read] = true;
+                (*iter)[m_columns.col_display] = format_display(name.raw(), false, true);
+                return true; // stop
+            }
+            return false;
+        });
+    }
+
+    void mark_all_read() {
+        m_tree_store->foreach_iter([this](const Gtk::TreeModel::iterator& iter) -> bool {
+            bool is_dir = (*iter)[m_columns.col_is_dir];
+            if (!is_dir) {
+                std::string path = static_cast<std::string>((*iter)[m_columns.col_path]);
+                m_read_files.insert(path);
+                Glib::ustring name = (*iter)[m_columns.col_name];
+                (*iter)[m_columns.col_is_read] = true;
+                (*iter)[m_columns.col_display] = format_display(name.raw(), false, true);
+            }
+            return false;
+        });
+        save_read_state();
+    }
+
+    void load_read_state() {
+        auto path = m_config_dir + "/read-files.txt";
+        std::ifstream f(path);
+        if (!f.is_open()) return;
+        std::string line;
+        while (std::getline(f, line)) {
+            if (!line.empty()) m_read_files.insert(line);
+        }
+    }
+
+    void save_read_state() {
+        auto path = m_config_dir + "/read-files.txt";
+        std::ofstream f(path);
+        for (const auto& p : m_read_files) {
+            f << p << '\n';
+        }
+    }
+
     // ── File watching ───────────────────────────────────────────────
 
     void setup_file_monitor(const std::string& root) {
@@ -378,6 +473,9 @@ private:
             (*iter)[m_columns.col_name] = e.name;
             (*iter)[m_columns.col_path] = e.path;
             (*iter)[m_columns.col_is_dir] = e.is_dir;
+            bool is_read = e.is_dir || m_read_files.count(e.path) > 0;
+            (*iter)[m_columns.col_is_read] = is_read;
+            (*iter)[m_columns.col_display] = format_display(e.name, e.is_dir, is_read);
             if (e.is_dir) populate_node(e.path, iter);
         }
     }
@@ -390,6 +488,12 @@ private:
         m_content = ss.str();
         m_current_file = path;
         set_title("ASE Viewer — " + fs::path(path).filename().string());
+
+        // Mark as read
+        if (m_read_files.insert(path).second) {
+            save_read_state();
+            update_tree_display(path);
+        }
 
         // Parse markdown into AST
         if (m_has_doc) ase::markdown::free_document(m_doc);
