@@ -9,8 +9,11 @@ license=('custom')
 depends=(
     'gtkmm-4.0'
     'libadwaita'
+    'graphviz'
     'ttf-fira-code'
     'ttf-nerd-fonts-symbols-mono'
+    'otf-stix'
+    'otf-stix-math'
 )
 makedepends=(
     'cmake'
@@ -20,8 +23,7 @@ makedepends=(
     'git'
 )
 optdepends=(
-    'graphviz: mermaid diagram rendering'
-    'otf-stix: math formula rendering'
+    'fcitx5-gtk: input method support'
 )
 source=("git+https://github.com/antarien/ase-client-viewer.git")
 sha256sums=('SKIP')
