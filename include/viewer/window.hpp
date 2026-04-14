@@ -28,7 +28,7 @@
 #include <viewer/status_bar.hpp>
 #include <viewer/tree_view.hpp>
 
-#include <ase/gtk/application.hpp>
+#include <ase/adp/gtk/application.hpp>
 
 #include <gtkmm/box.h>
 #include <gtkmm/paned.h>

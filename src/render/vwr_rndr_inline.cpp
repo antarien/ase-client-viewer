@@ -39,8 +39,26 @@
 #include "render/nerdfont_table.hpp"
 
 #include <ase/markdown/types.hpp>
+#include <ase/utils/strops.hpp>
+
+// Generated color SSOT (sha-web-console/generated/) — include path set by
+// clients/ase-client-viewer/CMakeLists.txt.
+#include "colors.hpp"
 
 namespace ase::viewer::render {
+
+namespace {
+
+// Format a 0xAARRGGBB constant as "#RRGGBB" for Pango markup spans.
+// Routes through ase::utils::format_hex_color so the underlying hex stays
+// in the generated header — never write literal "#xxxxxx" in markup.
+inline std::string css(uint32_t argb) {
+    char buf[8];
+    ::ase::utils::format_hex_color(buf, sizeof(buf), argb);
+    return std::string{buf};
+}
+
+}  // namespace
 
 uint32_t cstr_len(const char* s) {
     if (s == nullptr) return 0;
@@ -118,21 +136,22 @@ void build_inline_markup(std::string& out, const ase::markdown::Node* node) {
         return;
     }
     if (node->type == NODE_INLINE_CODE) {
-        // Mirrors the web <code> styling from
-        // clients/ase-client-web/ase-web-docviewer/src/DocsViewer.tsx:
-        //   bg-docs-code-bg (#0c0d14) + border (#393745)
-        //   + text-docs-link (#5a9cb8) + font-mono
-        // Pango-Markup supports background + foreground per span.
-        // Leading/trailing non-breaking thin spaces mimic the px-1
-        // horizontal padding so the inline box looks distinct from the
-        // surrounding paragraph text.
-        out.append("<span font_family=\"Fira Code\" background=\"#0c0d14\" foreground=\"#5a9cb8\">\xe2\x80\x89");
+        // Web 1:1: bg DOCS_CODE_BG, fg PANEL_CYAN (text-docs-link), font_mono.
+        // Leading/trailing non-breaking thin spaces mimic the web px-1
+        // horizontal padding around the inline-code box.
+        out.append("<span font_family=\"Fira Code\" background=\"");
+        out.append(css(::ase::colors::DOCS_CODE_BG));
+        out.append("\" foreground=\"");
+        out.append(css(::ase::colors::PANEL_CYAN));
+        out.append("\">\xe2\x80\x89");
         append_escaped(out, node->text, node->text_len);
         out.append("\xe2\x80\x89</span>");
         return;
     }
     if (node->type == NODE_LINK) {
-        out.append("<span foreground=\"#5a9cb8\" underline=\"single\">");
+        out.append("<span foreground=\"");
+        out.append(css(::ase::colors::PANEL_CYAN));
+        out.append("\" underline=\"single\">");
         build_inline_children(out, node);
         out.append("</span>");
         return;
@@ -140,43 +159,59 @@ void build_inline_markup(std::string& out, const ase::markdown::Node* node) {
     if (node->type == NODE_NERDFONT_ICON) {
         const char* utf8 = lookup_nerdfont(node->text, node->text_len);
         if (utf8 != nullptr) {
-            out.append("<span font_family=\"Symbols Nerd Font Mono\" foreground=\"#80deff\">");
+            out.append("<span font_family=\"Symbols Nerd Font Mono\" foreground=\"");
+            out.append(css(::ase::colors::DOCS_H1));
+            out.append("\">");
             out.append(utf8);
             out.append("</span>");
         } else {
-            out.append("<span foreground=\"#5a9cb8\">(");
+            out.append("<span foreground=\"");
+            out.append(css(::ase::colors::PANEL_CYAN));
+            out.append("\">(");
             append_escaped(out, node->text, node->text_len);
             out.append(")</span>");
         }
         return;
     }
     if (node->type == NODE_MATH_INLINE) {
-        out.append("<i><span foreground=\"#bad02d\">");
+        out.append("<i><span foreground=\"");
+        out.append(css(::ase::colors::DOCS_H2));
+        out.append("\">");
         append_escaped(out, node->text, node->text_len);
         out.append("</span></i>");
         return;
     }
     if (node->type == NODE_WIKI_LINK) {
-        out.append("<span foreground=\"#5a9cb8\">[[");
+        out.append("<span foreground=\"");
+        out.append(css(::ase::colors::PANEL_CYAN));
+        out.append("\">[[");
         append_escaped(out, node->text, node->text_len);
         out.append("]]</span>");
         return;
     }
     if (node->type == NODE_GLOSSARY_TERM) {
-        out.append("<span foreground=\"#a690fa\" underline=\"low\">");
+        // Web glossary: dotted underline only, no foreground tinting.
+        // Pango supports underline="low" + underline_color span attr.
+        out.append("<span underline=\"low\" underline_color=\"");
+        out.append(css(::ase::colors::CMS_GLOSSARY_UNDERLINE));
+        out.append("\">");
         append_escaped(out, node->text, node->text_len);
         out.append("</span>");
         return;
     }
     if (node->type == NODE_CROSS_REF) {
-        out.append("<span foreground=\"#5a9cb8\">→ ");
+        out.append("<span foreground=\"");
+        out.append(css(::ase::colors::PANEL_CYAN));
+        out.append("\">→ ");
         if (node->url != nullptr) append_escaped(out, node->url);
         else build_inline_children(out, node);
         out.append("</span>");
         return;
     }
     if (node->type == NODE_VERSION_INSERT) {
-        out.append("<span foreground=\"#5a9cb8\">{version}</span>");
+        out.append("<span foreground=\"");
+        out.append(css(::ase::colors::PANEL_CYAN));
+        out.append("\">{version}</span>");
         return;
     }
 

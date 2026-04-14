@@ -3,7 +3,7 @@
  *
  * The previous hand-rolled KaTeX subset (600+ lines of tokenizer /
  * box-tree / Cairo draw code) is replaced by a one-call delegation to
- * the ase-microtex-adapter which drives the full NanoMichael/MicroTeX
+ * the ase-adp-microtex which drives the full NanoMichael/MicroTeX
  * engine. Matrix / align / stretchy-delimiter coverage now comes for
  * free. The public signature and struct layout are preserved so
  * existing callers in vwr_rndr_doc.cpp do not need to change.
@@ -14,7 +14,7 @@
 
 #include "vwr_rndr_math.hpp"
 
-#include <ase/microtex/render.hpp>
+#include <ase/adp/microtex/render.hpp>
 
 namespace ase::viewer::render {
 
