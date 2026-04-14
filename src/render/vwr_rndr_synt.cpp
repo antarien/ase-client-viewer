@@ -10,7 +10,7 @@
  * web syntax highlighting produce visually identical output.
  *
  * Tree-sitter is a C library — its grammar entry-points (tree_sitter_cpp,
- * tree_sitter_python, …) are wrapped behind ase::treesitter::grammar_*()
+ * tree_sitter_python, …) are wrapped behind ase::adp::treesitter::grammar_*()
  * by the adapter at adapter/ase-adp-treesitter/. This file therefore
  * has no extern "C" block of its own; the C linkage lives only in the
  * adapter's header where the validator path-whitelist allows it.
@@ -182,25 +182,25 @@ void escape_append(std::string& out, const char* text, uint32_t len) {
 }
 
 // Get tree-sitter language for a language name. Routes through the
-// ase::treesitter adapter — never call tree_sitter_*() directly here.
+// ase::adp::treesitter adapter — never call tree_sitter_*() directly here.
 const TSLanguage* get_language(const char* lang) {
     if (!lang) return nullptr;
     if (std::strcmp(lang, "cpp") == 0 || std::strcmp(lang, "c++") == 0 ||
         std::strcmp(lang, "cxx") == 0 || std::strcmp(lang, "hpp") == 0)
-        return ::ase::treesitter::grammar_cpp();
+        return ::ase::adp::treesitter::grammar_cpp();
     if (std::strcmp(lang, "c") == 0)
-        return ::ase::treesitter::grammar_c();
+        return ::ase::adp::treesitter::grammar_c();
     if (std::strcmp(lang, "python") == 0 || std::strcmp(lang, "py") == 0)
-        return ::ase::treesitter::grammar_python();
+        return ::ase::adp::treesitter::grammar_python();
     if (std::strcmp(lang, "bash") == 0 || std::strcmp(lang, "sh") == 0 ||
         std::strcmp(lang, "shell") == 0 || std::strcmp(lang, "zsh") == 0)
-        return ::ase::treesitter::grammar_bash();
+        return ::ase::adp::treesitter::grammar_bash();
     if (std::strcmp(lang, "json") == 0 || std::strcmp(lang, "jsonc") == 0)
-        return ::ase::treesitter::grammar_json();
+        return ::ase::adp::treesitter::grammar_json();
     if (std::strcmp(lang, "typescript") == 0 || std::strcmp(lang, "ts") == 0 ||
         std::strcmp(lang, "tsx") == 0 || std::strcmp(lang, "javascript") == 0 ||
         std::strcmp(lang, "js") == 0 || std::strcmp(lang, "jsx") == 0)
-        return ::ase::treesitter::grammar_typescript();
+        return ::ase::adp::treesitter::grammar_typescript();
     return nullptr;
 }
 

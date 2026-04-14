@@ -1,10 +1,10 @@
 #pragma once
 
 /**
- * ASE Viewer — LaTeX math renderer (thin wrapper over ase::microtex)
+ * ASE Viewer — LaTeX math renderer (thin wrapper over ase::adp::microtex)
  *
  * Historic header that exposed a hand-rolled KaTeX subset is replaced
- * with a thin shim around the ase::microtex adapter. All LaTeX parsing,
+ * with a thin shim around the ase::adp::microtex adapter. All LaTeX parsing,
  * box-tree layout, and drawing happens inside the adapter module;
  * this file keeps the historic public signature so existing viewer
  * call sites do not need to change.

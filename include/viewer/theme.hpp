@@ -10,7 +10,7 @@
  *              with the web client without manual hex updates.
  *
  *              No widget code lives here - the caller feeds generate_css()
- *              to ase::gtk::CssProvider::load_from_data().
+ *              to ase::adp::gtk::CssProvider::load_from_data().
  *
  * @module      ase-client-viewer
  * @layer       5

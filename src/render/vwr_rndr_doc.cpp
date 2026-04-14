@@ -11,7 +11,7 @@
  *              via a Pango markup builder which preserves emphasis, strong,
  *              inline code, links, NerdFont icons (font-family switch via the
  *              build-generated nerdfont_table.hpp) and inline math (passed
- *              through to ase::microtex). Block-level math, mermaid diagrams,
+ *              through to ase::adp::microtex). Block-level math, mermaid diagrams,
  *              syntax-highlighted code blocks and DSL directives are routed
  *              to their dedicated specialist renderers.
  *
@@ -32,7 +32,7 @@
  * [ ] No std::stringstream / std::strcmp / std::strlen
  * [ ] All inline rich-text routed through Pango markup, never collect_text()
  * [ ] NerdFont icons rendered via build-generated nerdfont_table.hpp
- * [ ] Math handled by ase::microtex adapter (adapter/ase-adp-microtex)
+ * [ ] Math handled by ase::adp::microtex adapter (adapter/ase-adp-microtex)
  * [ ] Mermaid diagrams routed to render_mermaid()
  * [ ] All block heights measured before drawing (no fixed magic numbers)
  * ==============================================================================
@@ -199,7 +199,7 @@ inline void set_layout_markup(const Glib::RefPtr<Pango::Layout>& layout,
 // shared Pango markup builder, but inline math expressions are inserted
 // as Unicode OBJECT REPLACEMENT CHARACTER (U+FFFC, 3 UTF-8 bytes) and
 // reserved as Pango shape attributes with the bounding box returned by
-// ase::microtex::measure_math. After Pango lays out the paragraph, the
+// ase::adp::microtex::measure_math. After Pango lays out the paragraph, the
 // position of every U+FFFC is queried via pango_layout_index_to_pos and
 // the actual MicroTeX glyphs are rendered at that exact baseline-aligned
 // pixel position. Result: full LaTeX inline math inside flowing text.

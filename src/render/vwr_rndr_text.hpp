@@ -13,7 +13,7 @@
  *   - Body  Fira Code (matches web font-mono on the docs container)
  *   - Code  Fira Code (text-3xs / 10 px)
  *   - Icons Symbols Nerd Font Mono (NerdFont glyph fallback)
- *   - Math  STIX Two Text (display math via ase::microtex)
+ *   - Math  STIX Two Text (display math via ase::adp::microtex)
  *
  * @module      ase-client-viewer
  * @layer       5 (Clients)

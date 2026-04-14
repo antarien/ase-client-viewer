@@ -75,7 +75,7 @@ message(STATUS "Configuring ${PROJECT_NAME} v${PROJECT_VERSION}")
 
 # ── System Dependencies ──────────────────────────────────────────────
 #
-# gtkmm-4 / libadwaita-1 are consumed transitively through the ase::gtk
+# gtkmm-4 / libadwaita-1 are consumed transitively through the ase::adp::gtk
 # adapter linked below. Graphviz stays a direct pkg-config check because
 # the adapter does not (and should not) know about the Mermaid render
 # path.
@@ -83,9 +83,9 @@ message(STATUS "Configuring ${PROJECT_NAME} v${PROJECT_VERSION}")
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GRAPHVIZ IMPORTED_TARGET libgvc libcdt libcgraph)
 
-# ── ase::gtk adapter (L3 - 3rd party GTK isolation) ──────────────────
+# ── ase::adp::gtk adapter (L3 - 3rd party GTK isolation) ──────────────
 
-if(NOT TARGET ase::gtk)
+if(NOT TARGET ase::adp::gtk)
     set(ASE_ADAPTER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../adapter)
     add_subdirectory(${ASE_ADAPTER_PATH}/ase-adp-gtk ${CMAKE_BINARY_DIR}/_deps/ase-adp-gtk-build)
 endif()
@@ -98,6 +98,26 @@ if(NOT TARGET ase::utils)
     set(ASE_FOUNDATION_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../foundation)
     add_subdirectory(${ASE_FOUNDATION_PATH}/ase-utils ${CMAKE_BINARY_DIR}/_deps/ase-utils-build)
 endif()
+
+# ── ase::imgcache (shared) ───────────────────────────────────────────
+# Shared LRU image cache for native Cairo/Pixbuf rendering. SSOT for
+# all PNG/JPG/SVG loading in the DSL renderers (figure block, hero
+# backgrounds, inline images). Owned exclusively by the viewer build —
+# root CMakeLists.txt does NOT add this subdirectory (no double-add).
+add_subdirectory(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../shared/ase-imgcache
+    ${CMAKE_BINARY_DIR}/_deps/ase-imgcache-build
+)
+
+# ── ase::adp::treesitter (adapter/) ───────────────────────────────────
+# Header-only adapter that wraps the C grammar entry-points of tree-
+# sitter behind ase::adp::treesitter::grammar_*() inline functions so the
+# extern "C" linkage stays out of viewer source. Owned exclusively by
+# the viewer build — root CMakeLists.txt does NOT add this either.
+add_subdirectory(
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../adapter/ase-adp-treesitter
+    ${CMAKE_BINARY_DIR}/_deps/ase-adp-treesitter-build
+)
 
 # ── Core Library (platform-agnostic) ─────────────────────────────────
 
@@ -202,8 +222,9 @@ target_include_directories(ts-grammar-typescript PRIVATE ${ts_typescript_SOURCE_
 # ── Link ase-adp-microtex (adapter/) ────────────────────────────
 # LaTeX math rendering is handled by the dedicated adapter subgit which
 # isolates MicroTeX's tex::* inheritance from client code. We consume
-# only the clean ase::microtex public API.
-if(NOT TARGET ase::microtex)
+# only the clean ase::adp::microtex public API (the C++ namespace is still
+# ase::adp::microtex; the renamed CMake target alias is ase::adp::microtex).
+if(NOT TARGET ase::adp::microtex)
     set(ASE_ADAPTER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../adapter)
     add_subdirectory(${ASE_ADAPTER_PATH}/ase-adp-microtex ${CMAKE_BINARY_DIR}/_deps/ase-adp-microtex-build)
 endif()
@@ -301,8 +322,8 @@ target_link_libraries(ase-viewer
         ase::markdown
         ase::utils          # format_hex_color for theme.cpp SSOT
         ase::imgcache       # shared LRU image cache (SSOT for image loading)
-        ase::treesitter     # header-only adapter wrapping tree-sitter grammar lookups
-        ase::gtk            # transitively exports gtkmm-4 + libadwaita-1
+        ase::adp::treesitter # header-only adapter wrapping tree-sitter grammar lookups
+        ase::adp::gtk        # transitively exports gtkmm-4 + libadwaita-1
         tree-sitter
         ts-grammar-cpp
         ts-grammar-c
@@ -311,7 +332,7 @@ target_link_libraries(ase-viewer
         ts-grammar-json
         ts-grammar-typescript
         muparser
-        ase::microtex
+        ase::adp::microtex
 )
 
 # Graphviz for Mermaid rendering (optional — compiled with HAVE_GRAPHVIZ)
