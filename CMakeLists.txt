@@ -87,7 +87,7 @@ pkg_check_modules(GRAPHVIZ IMPORTED_TARGET libgvc libcdt libcgraph)
 
 if(NOT TARGET ase::gtk)
     set(ASE_ADAPTER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../adapter)
-    add_subdirectory(${ASE_ADAPTER_PATH}/ase-gtk-adapter ${CMAKE_BINARY_DIR}/_deps/ase-gtk-adapter-build)
+    add_subdirectory(${ASE_ADAPTER_PATH}/ase-adp-gtk ${CMAKE_BINARY_DIR}/_deps/ase-adp-gtk-build)
 endif()
 
 # ── ase::utils (L0 - foundation) ─────────────────────────────────────
@@ -199,13 +199,13 @@ target_include_directories(ts-grammar-json PRIVATE ${ts_json_SOURCE_DIR}/src ${t
 add_library(ts-grammar-typescript STATIC ${ts_typescript_SOURCE_DIR}/typescript/src/parser.c ${ts_typescript_SOURCE_DIR}/typescript/src/scanner.c)
 target_include_directories(ts-grammar-typescript PRIVATE ${ts_typescript_SOURCE_DIR}/typescript/src ${tree_sitter_SOURCE_DIR}/lib/include)
 
-# ── Link ase-microtex-adapter (adapter/) ────────────────────────────
+# ── Link ase-adp-microtex (adapter/) ────────────────────────────
 # LaTeX math rendering is handled by the dedicated adapter subgit which
 # isolates MicroTeX's tex::* inheritance from client code. We consume
 # only the clean ase::microtex public API.
 if(NOT TARGET ase::microtex)
     set(ASE_ADAPTER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../adapter)
-    add_subdirectory(${ASE_ADAPTER_PATH}/ase-microtex-adapter ${CMAKE_BINARY_DIR}/_deps/ase-microtex-adapter-build)
+    add_subdirectory(${ASE_ADAPTER_PATH}/ase-adp-microtex ${CMAKE_BINARY_DIR}/_deps/ase-adp-microtex-build)
 endif()
 
 # ── Fetch muparser (ASE-Math plots) ─────────────────────────────────
@@ -255,7 +255,6 @@ add_executable(ase-viewer
     src/render/vwr_rndr_math.cpp
     src/render/vwr_rndr_mmrd.cpp
     src/render/vwr_rndr_amdl.cpp
-    src/render/vwr_rndr_img.cpp
     src/render/dsl/vwr_dsl_dispatch.cpp
     src/render/dsl/vwr_dsl_hero.cpp
     src/render/dsl/vwr_dsl_cols.cpp
@@ -301,6 +300,8 @@ target_link_libraries(ase-viewer
         viewer_core
         ase::markdown
         ase::utils          # format_hex_color for theme.cpp SSOT
+        ase::imgcache       # shared LRU image cache (SSOT for image loading)
+        ase::treesitter     # header-only adapter wrapping tree-sitter grammar lookups
         ase::gtk            # transitively exports gtkmm-4 + libadwaita-1
         tree-sitter
         ts-grammar-cpp

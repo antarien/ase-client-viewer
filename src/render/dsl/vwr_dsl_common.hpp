@@ -3,7 +3,13 @@
 /**
  * Shared utilities for DSL directive renderers.
  *
- * Color SSOT  — sha-client-web/sha-web-styles/src/colors.ts
+ * Design SSOT — all colors and tokens come from the generated headers:
+ *   colors.hpp         (from sha-web-styles/src/colors.ts → ase::colors::*)
+ *   design_tokens.hpp  (from sha-web-styles/src/theme.css → ase::theme::*)
+ * Never hardcode hex, pixel or font values here — regenerate with
+ *   node sha-web-console/generate-colors.cjs
+ *   node sha-web-console/generate-design-tokens.cjs
+ *
  * Inline text — vwr_rndr_inline.hpp (shared with the document dispatcher)
  *
  * No std::vector / std::strcmp / std::sstream — directive children are
@@ -21,6 +27,13 @@
 
 #include <ase/markdown/ast.hpp>
 #include <ase/markdown/types.hpp>
+#include <ase/utils/strops.hpp>
+
+// Generated color SSOT (sha-web-console/generated/). Include-path is
+// provided by clients/ase-client-viewer/CMakeLists.txt. Per-block
+// renderers that need design_tokens.hpp (spacing/font sizes) include it
+// themselves when they consume a token.
+#include "colors.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -28,26 +41,67 @@
 
 namespace ase::viewer::render::dsl {
 
-// ── Color SSOT (sha-web-styles) — DOCS_* palette ───────────────────
+// ── Color SSOT — derived from ase::colors::* (generated from colors.ts)
 
-constexpr double CYAN_R   = 0x80 / 255.0, CYAN_G   = 0xde / 255.0, CYAN_B   = 0xff / 255.0; // DOCS_H1
-constexpr double CHART_R  = 0xba / 255.0, CHART_G  = 0xd0 / 255.0, CHART_B  = 0x2d / 255.0; // DOCS_H2
-constexpr double ORANGE_R = 0xe0 / 255.0, ORANGE_G = 0xa0 / 255.0, ORANGE_B = 0x60 / 255.0; // DOCS_H3
-constexpr double PURPLE_R = 0xa0 / 255.0, PURPLE_G = 0x80 / 255.0, PURPLE_B = 0xc0 / 255.0; // DOCS_H4
+// Extract normalised R/G/B/A channels from a 0xAARRGGBB constant so each
+// Cairo cr->set_source_rgb / _rgba call can consume component-wise values
+// while the underlying hex remains the single source of truth. Generated
+// rgba() colors from colors.ts (e.g. BORDER_A20, CMS_CALLOUT_*_BG) carry
+// their alpha in the high byte and must be drawn with set_source_rgba.
+constexpr double rgb_a(uint32_t argb) { return static_cast<double>((argb >> 24) & 0xFFu) / 255.0; }
+constexpr double rgb_r(uint32_t argb) { return static_cast<double>((argb >> 16) & 0xFFu) / 255.0; }
+constexpr double rgb_g(uint32_t argb) { return static_cast<double>((argb >>  8) & 0xFFu) / 255.0; }
+constexpr double rgb_b(uint32_t argb) { return static_cast<double>((argb      ) & 0xFFu) / 255.0; }
 
-constexpr double GREEN_R  = 0x30 / 255.0, GREEN_G  = 0xa8 / 255.0, GREEN_B  = 0x48 / 255.0; // DOCS_CALLOUT_TIP_BORDER
-constexpr double AMBER_R  = 0xc8 / 255.0, AMBER_G  = 0xa0 / 255.0, AMBER_B  = 0x30 / 255.0; // DOCS_CALLOUT_WARN_BORDER
-constexpr double NOTE_R   = 0x90 / 255.0, NOTE_G   = 0x50 / 255.0, NOTE_B   = 0xc0 / 255.0; // DOCS_CALLOUT_NOTE_BORDER
-constexpr double INFO_R   = 0x3a / 255.0, INFO_G   = 0x90 / 255.0, INFO_B   = 0xb8 / 255.0; // DOCS_CALLOUT_INFO_BORDER
-constexpr double RED_R    = 0xa8 / 255.0, RED_G    = 0x4a / 255.0, RED_B    = 0x4a / 255.0; // PANEL_RED
+// Format a 0xAARRGGBB color constant as a "#RRGGBB" string suitable for
+// Pango markup foreground/background attributes. Routes through
+// ase::utils::format_hex_color so the underlying hex remains SSOT —
+// callers must NEVER write literal "#xxxxxx" strings into markup.
+inline std::string color_hex(uint32_t argb) {
+    char buf[8];
+    ::ase::utils::format_hex_color(buf, sizeof(buf), argb);
+    return std::string{buf};
+}
 
-constexpr double TEXT_R   = 0x8a / 255.0, TEXT_G   = 0x9a / 255.0, TEXT_B   = 0x9a / 255.0; // TEXT_PRIMARY
-constexpr double MUTED_R  = 0x70 / 255.0, MUTED_G  = 0x70 / 255.0, MUTED_B  = 0x70 / 255.0; // TEXT_PANEL_MUTED
-constexpr double DOCSFG_R = 0xdd / 255.0, DOCSFG_G = 0xdd / 255.0, DOCSFG_B = 0xdd / 255.0; // TEXT_DOCS_FG
+// Heading palette — H1..H4 semantic roles from the web styleguide.
+constexpr double CYAN_R   = rgb_r(::ase::colors::DOCS_H1), CYAN_G   = rgb_g(::ase::colors::DOCS_H1), CYAN_B   = rgb_b(::ase::colors::DOCS_H1);
+constexpr double CHART_R  = rgb_r(::ase::colors::DOCS_H2), CHART_G  = rgb_g(::ase::colors::DOCS_H2), CHART_B  = rgb_b(::ase::colors::DOCS_H2);
+constexpr double ORANGE_R = rgb_r(::ase::colors::DOCS_H3), ORANGE_G = rgb_g(::ase::colors::DOCS_H3), ORANGE_B = rgb_b(::ase::colors::DOCS_H3);
+constexpr double PURPLE_R = rgb_r(::ase::colors::DOCS_H4), PURPLE_G = rgb_g(::ase::colors::DOCS_H4), PURPLE_B = rgb_b(::ase::colors::DOCS_H4);
 
-constexpr double SURFACE_R     = 0x0c / 255.0, SURFACE_G     = 0x12 / 255.0, SURFACE_B     = 0x14 / 255.0; // DOCS_DSL_BG
-constexpr double SURFACE_BRT_R = 0x0f / 255.0, SURFACE_BRT_G = 0x11 / 255.0, SURFACE_BRT_B = 0x0f / 255.0; // DOCS_TABLE_ROW_ALT
+// Callout accent borders.
+constexpr double GREEN_R  = rgb_r(::ase::colors::DOCS_CALLOUT_TIP_BORDER),  GREEN_G  = rgb_g(::ase::colors::DOCS_CALLOUT_TIP_BORDER),  GREEN_B  = rgb_b(::ase::colors::DOCS_CALLOUT_TIP_BORDER);
+constexpr double AMBER_R  = rgb_r(::ase::colors::DOCS_CALLOUT_WARN_BORDER), AMBER_G  = rgb_g(::ase::colors::DOCS_CALLOUT_WARN_BORDER), AMBER_B  = rgb_b(::ase::colors::DOCS_CALLOUT_WARN_BORDER);
+constexpr double NOTE_R   = rgb_r(::ase::colors::DOCS_CALLOUT_NOTE_BORDER), NOTE_G   = rgb_g(::ase::colors::DOCS_CALLOUT_NOTE_BORDER), NOTE_B   = rgb_b(::ase::colors::DOCS_CALLOUT_NOTE_BORDER);
+constexpr double INFO_R   = rgb_r(::ase::colors::DOCS_CALLOUT_INFO_BORDER), INFO_G   = rgb_g(::ase::colors::DOCS_CALLOUT_INFO_BORDER), INFO_B   = rgb_b(::ase::colors::DOCS_CALLOUT_INFO_BORDER);
+constexpr double RED_R    = rgb_r(::ase::colors::PANEL_RED),                RED_G    = rgb_g(::ase::colors::PANEL_RED),                RED_B    = rgb_b(::ase::colors::PANEL_RED);
 
+// Text palette.
+constexpr double TEXT_R   = rgb_r(::ase::colors::TEXT_PRIMARY),     TEXT_G   = rgb_g(::ase::colors::TEXT_PRIMARY),     TEXT_B   = rgb_b(::ase::colors::TEXT_PRIMARY);
+constexpr double MUTED_R  = rgb_r(::ase::colors::TEXT_PANEL_MUTED), MUTED_G  = rgb_g(::ase::colors::TEXT_PANEL_MUTED), MUTED_B  = rgb_b(::ase::colors::TEXT_PANEL_MUTED);
+constexpr double DOCSFG_R = rgb_r(::ase::colors::TEXT_DOCS_FG),     DOCSFG_G = rgb_g(::ase::colors::TEXT_DOCS_FG),     DOCSFG_B = rgb_b(::ase::colors::TEXT_DOCS_FG);
+
+// DSL block surfaces.
+constexpr double SURFACE_R     = rgb_r(::ase::colors::DOCS_DSL_BG),        SURFACE_G     = rgb_g(::ase::colors::DOCS_DSL_BG),        SURFACE_B     = rgb_b(::ase::colors::DOCS_DSL_BG);
+constexpr double SURFACE_BRT_R = rgb_r(::ase::colors::DOCS_TABLE_ROW_ALT), SURFACE_BRT_G = rgb_g(::ase::colors::DOCS_TABLE_ROW_ALT), SURFACE_BRT_B = rgb_b(::ase::colors::DOCS_TABLE_ROW_ALT);
+
+// ── Layout spacing — 1:1 web parity (Tailwind 4) ───────────────────
+//
+// These two constants are literal pixel values taken directly from the web
+// CSS and do not map cleanly onto the 4/8/16/24/32/48 design-token scale
+// in ase::theme::*. Tailwind's intermediate steps (mb-2.5 = 10 px,
+// py-3 = 12 px) are the actual rhythm the web renderer uses for docs.
+//
+// PARA_SPACING — 10 px, matches <p> margin-bottom in the web CMS viewer
+//                (cmsViewer.tsx, `mb-2.5`).
+// BLOCK_PAD    — 12 px, matches py-3 content padding used by accordion,
+//                tabs-content, terminal and similar "flow-text inside a
+//                block" renderers. Blocks with their own padding (callout
+//                py-4, stats/columns p-4, hero p-8) must override this
+//                locally — do NOT raise this shared default.
+//
+// If the web ever switches to pure 4/8/16 spacing, swap these to
+// ase::theme::space_* — until then literal values preserve 1:1 parity.
 constexpr double PARA_SPACING = 10.0;
 constexpr double BLOCK_PAD    = 12.0;
 

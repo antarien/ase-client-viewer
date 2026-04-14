@@ -21,9 +21,9 @@
 #include <viewer/theme.hpp>
 #include <viewer/window.hpp>
 
-#include <ase/adw/adw.hpp>
-#include <ase/gtk/application.hpp>
-#include <ase/gtk/style.hpp>
+#include <ase/adp/adw/adw.hpp>
+#include <ase/adp/gtk/application.hpp>
+#include <ase/adp/gtk/style.hpp>
 
 #include <memory>
 #include <string>

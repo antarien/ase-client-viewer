@@ -32,7 +32,7 @@
  * [ ] No std::stringstream / std::strcmp / std::strlen
  * [ ] All inline rich-text routed through Pango markup, never collect_text()
  * [ ] NerdFont icons rendered via build-generated nerdfont_table.hpp
- * [ ] Math handled by ase::microtex adapter (adapter/ase-microtex-adapter)
+ * [ ] Math handled by ase::microtex adapter (adapter/ase-adp-microtex)
  * [ ] Mermaid diagrams routed to render_mermaid()
  * [ ] All block heights measured before drawing (no fixed magic numbers)
  * ==============================================================================
@@ -44,13 +44,18 @@
 #include "vwr_rndr_mmrd.hpp"
 #include "vwr_rndr_math.hpp"
 #include "vwr_rndr_amdl.hpp"
-#include "vwr_rndr_img.hpp"
+#include <ase/imgcache/image_cache.hpp>
 #include "vwr_rndr_synt.hpp"
 #include "dsl/vwr_dsl_dispatch.hpp"
 
 #include "render/nerdfont_table.hpp"
 
 #include <ase/markdown/types.hpp>
+
+// Generated color SSOT (sha-web-console/generated/) — for BORDER_A30 etc.
+#include "colors.hpp"
+
+#include <ase/utils/strops.hpp>
 
 #include <cairo.h>
 #include <pango/pango.h>
@@ -62,40 +67,84 @@ namespace ase::viewer::render {
 
 namespace {
 
-// ── Color SSOT (sha-web-styles/src/colors.ts) ──────────────────────
-// All values mirror the DOCS_* / TEXT_* exports from the web SSOT.
+// ── Color SSOT — derived from ase::colors::* (generated from colors.ts)
+//
+// Channels are unpacked from each 0xAARRGGBB constant via inline shifts so
+// the underlying hex stays in the generated header and never lives in two
+// places. Never write hex literals or 0x?? / 255.0 in this file again —
+// add the missing constant to colors.ts, regenerate, then reference it.
+constexpr double rgb_r(uint32_t argb) { return static_cast<double>((argb >> 16) & 0xFFu) / 255.0; }
+constexpr double rgb_g(uint32_t argb) { return static_cast<double>((argb >>  8) & 0xFFu) / 255.0; }
+constexpr double rgb_b(uint32_t argb) { return static_cast<double>((argb      ) & 0xFFu) / 255.0; }
+constexpr double rgb_a(uint32_t argb) { return static_cast<double>((argb >> 24) & 0xFFu) / 255.0; }
 
-constexpr double H1_R = 0x80 / 255.0, H1_G = 0xde / 255.0, H1_B = 0xff / 255.0; // DOCS_H1 #80deff
-constexpr double H2_R = 0xba / 255.0, H2_G = 0xd0 / 255.0, H2_B = 0x2d / 255.0; // DOCS_H2 #bad02d
-constexpr double H3_R = 0xe0 / 255.0, H3_G = 0xa0 / 255.0, H3_B = 0x60 / 255.0; // DOCS_H3 #e0a060
-constexpr double H4_R = 0xa0 / 255.0, H4_G = 0x80 / 255.0, H4_B = 0xc0 / 255.0; // DOCS_H4 #a080c0
+// Heading palette.
+constexpr double H1_R = rgb_r(::ase::colors::DOCS_H1), H1_G = rgb_g(::ase::colors::DOCS_H1), H1_B = rgb_b(::ase::colors::DOCS_H1);
+constexpr double H2_R = rgb_r(::ase::colors::DOCS_H2), H2_G = rgb_g(::ase::colors::DOCS_H2), H2_B = rgb_b(::ase::colors::DOCS_H2);
+constexpr double H3_R = rgb_r(::ase::colors::DOCS_H3), H3_G = rgb_g(::ase::colors::DOCS_H3), H3_B = rgb_b(::ase::colors::DOCS_H3);
+constexpr double H4_R = rgb_r(::ase::colors::DOCS_H4), H4_G = rgb_g(::ase::colors::DOCS_H4), H4_B = rgb_b(::ase::colors::DOCS_H4);
 
-constexpr double TEXT_R = 0x8a / 255.0, TEXT_G = 0x9a / 255.0, TEXT_B = 0x9a / 255.0;   // TEXT_PRIMARY #8a9a9a
-constexpr double DOCSFG_R = 0xdd / 255.0, DOCSFG_G = 0xdd / 255.0, DOCSFG_B = 0xdd / 255.0; // TEXT_DOCS_FG #dddddd
-constexpr double MUTED_R = 0x70 / 255.0, MUTED_G = 0x70 / 255.0, MUTED_B = 0x70 / 255.0; // TEXT_PANEL_MUTED #707070
-constexpr double LINK_R = 0x5a / 255.0, LINK_G = 0x9c / 255.0, LINK_B = 0xb8 / 255.0;    // PANEL_CYAN #5a9cb8
+// Body / text palette.
+constexpr double TEXT_R   = rgb_r(::ase::colors::TEXT_PRIMARY),     TEXT_G   = rgb_g(::ase::colors::TEXT_PRIMARY),     TEXT_B   = rgb_b(::ase::colors::TEXT_PRIMARY);
+constexpr double DOCSFG_R = rgb_r(::ase::colors::TEXT_DOCS_FG),     DOCSFG_G = rgb_g(::ase::colors::TEXT_DOCS_FG),     DOCSFG_B = rgb_b(::ase::colors::TEXT_DOCS_FG);
+constexpr double MUTED_R  = rgb_r(::ase::colors::TEXT_PANEL_MUTED), MUTED_G  = rgb_g(::ase::colors::TEXT_PANEL_MUTED), MUTED_B  = rgb_b(::ase::colors::TEXT_PANEL_MUTED);
+constexpr double LINK_R   = rgb_r(::ase::colors::PANEL_CYAN),       LINK_G   = rgb_g(::ase::colors::PANEL_CYAN),       LINK_B   = rgb_b(::ase::colors::PANEL_CYAN);
 
-constexpr double CODE_BG_R = 0x0c / 255.0, CODE_BG_G = 0x0d / 255.0, CODE_BG_B = 0x14 / 255.0; // DOCS_CODE_BG #0c0d14
+// Code block + table surfaces.
+constexpr double CODE_BG_R = rgb_r(::ase::colors::DOCS_CODE_BG), CODE_BG_G = rgb_g(::ase::colors::DOCS_CODE_BG), CODE_BG_B = rgb_b(::ase::colors::DOCS_CODE_BG);
 
-constexpr double TBL_BG_R  = 0x0a / 255.0, TBL_BG_G  = 0x0c / 255.0, TBL_BG_B  = 0x0a / 255.0; // DOCS_TABLE_BG #0a0c0a
-constexpr double TBL_HD_R  = 0x1a / 255.0, TBL_HD_G  = 0x1e / 255.0, TBL_HD_B  = 0x1a / 255.0; // DOCS_TABLE_HEADER #1a1e1a
-constexpr double TBL_ALT_R = 0x0f / 255.0, TBL_ALT_G = 0x11 / 255.0, TBL_ALT_B = 0x0f / 255.0; // DOCS_TABLE_ROW_ALT #0f110f
+constexpr double TBL_BG_R  = rgb_r(::ase::colors::DOCS_TABLE_BG),       TBL_BG_G  = rgb_g(::ase::colors::DOCS_TABLE_BG),       TBL_BG_B  = rgb_b(::ase::colors::DOCS_TABLE_BG);
+constexpr double TBL_HD_R  = rgb_r(::ase::colors::DOCS_TABLE_HEADER),   TBL_HD_G  = rgb_g(::ase::colors::DOCS_TABLE_HEADER),   TBL_HD_B  = rgb_b(::ase::colors::DOCS_TABLE_HEADER);
+constexpr double TBL_ALT_R = rgb_r(::ase::colors::DOCS_TABLE_ROW_ALT),  TBL_ALT_G = rgb_g(::ase::colors::DOCS_TABLE_ROW_ALT),  TBL_ALT_B = rgb_b(::ase::colors::DOCS_TABLE_ROW_ALT);
 
 // Callout border colours (DOCS_CALLOUT_*_BORDER).
-constexpr double INFO_R = 0x3a / 255.0, INFO_G = 0x90 / 255.0, INFO_B = 0xb8 / 255.0; // #3a90b8
-constexpr double WARN_R = 0xc8 / 255.0, WARN_G = 0xa0 / 255.0, WARN_B = 0x30 / 255.0; // #c8a030
-constexpr double TIP_R  = 0x30 / 255.0, TIP_G  = 0xa8 / 255.0, TIP_B  = 0x48 / 255.0; // #30a848
-constexpr double NOTE_R = 0x90 / 255.0, NOTE_G = 0x50 / 255.0, NOTE_B = 0xc0 / 255.0; // #9050c0
+constexpr double INFO_R = rgb_r(::ase::colors::DOCS_CALLOUT_INFO_BORDER), INFO_G = rgb_g(::ase::colors::DOCS_CALLOUT_INFO_BORDER), INFO_B = rgb_b(::ase::colors::DOCS_CALLOUT_INFO_BORDER);
+constexpr double WARN_R = rgb_r(::ase::colors::DOCS_CALLOUT_WARN_BORDER), WARN_G = rgb_g(::ase::colors::DOCS_CALLOUT_WARN_BORDER), WARN_B = rgb_b(::ase::colors::DOCS_CALLOUT_WARN_BORDER);
+constexpr double TIP_R  = rgb_r(::ase::colors::DOCS_CALLOUT_TIP_BORDER),  TIP_G  = rgb_g(::ase::colors::DOCS_CALLOUT_TIP_BORDER),  TIP_B  = rgb_b(::ase::colors::DOCS_CALLOUT_TIP_BORDER);
+constexpr double NOTE_R = rgb_r(::ase::colors::DOCS_CALLOUT_NOTE_BORDER), NOTE_G = rgb_g(::ase::colors::DOCS_CALLOUT_NOTE_BORDER), NOTE_B = rgb_b(::ase::colors::DOCS_CALLOUT_NOTE_BORDER);
 
-// ── Spacing constants ──────────────────────────────────────────────
+// ── Spacing constants — web 1:1 (cmsViewer.tsx) ────────────────────
+//   <p>     mb-2.5 = 10
+//   code/table mt-3 mb-5 (12/20)
+//   <hr>    my-6 = 24 each side
+//   <ul/ol> mt-4 mb-2.5 ml-3 (16/10/12)
 
-constexpr double PARA_SPACING   = 10.0;
-constexpr double HEAD_SPACING_T = 24.0;
-constexpr double HEAD_SPACING_B = 8.0;
+constexpr double PARA_SPACING   = 10.0;  // mb-2.5
 constexpr double CODE_PADDING   = 8.0;
-constexpr double LIST_INDENT    = 20.0;
-constexpr double HR_SPACING     = 16.0;
+constexpr double LIST_INDENT    = 12.0;  // ml-3
+constexpr double HR_SPACING     = 24.0;  // my-6 (was 16)
 constexpr double CALLOUT_PAD    = 12.0;
+
+// Heading margins per web (cmsViewer.tsx). Each level uses its own
+// mt-/mb- pair — uniform 24/8 was wrong.
+//   h1 mt-8 mb-4 (32/16)  + pb-1.5 (6) + border-bottom
+//   h2 mt-7 mb-3 (28/12)
+//   h3 mt-6 mb-2 (24/8)
+//   h4 mt-5 mb-2 (20/8)
+constexpr double H1_MT = 32.0, H1_MB = 16.0, H1_PB = 6.0;
+constexpr double H2_MT = 28.0, H2_MB = 12.0;
+constexpr double H3_MT = 24.0, H3_MB = 8.0;
+constexpr double H4_MT = 20.0, H4_MB = 8.0;
+
+struct HeadingSpacing { double mt, mb; };
+inline HeadingSpacing heading_spacing(uint8_t level) {
+    if (level == 1) return {H1_MT, H1_MB};
+    if (level == 2) return {H2_MT, H2_MB};
+    if (level == 3) return {H3_MT, H3_MB};
+    return {H4_MT, H4_MB};
+}
+
+// SSOT-routed Pango markup fragments built once at static-init from
+// ase::colors::*. Used for link spans inside math-aware inline builders
+// where the open/close strings are passed as const char*.
+inline const std::string& link_span_open() {
+    static const std::string s = []() {
+        char buf[8];
+        ::ase::utils::format_hex_color(buf, sizeof(buf), ::ase::colors::PANEL_CYAN);
+        return std::string{"<span foreground=\""} + buf + "\" underline=\"single\">";
+    }();
+    return s;
+}
 
 // ── Color dispatch (no switch) ─────────────────────────────────────
 
@@ -222,11 +271,14 @@ void build_inline_markup_with_math(std::string& out,
         node->type == NODE_STRIKETHROUGH || node->type == NODE_LINK) {
         const char* open  = "<i>";
         const char* close = "</i>";
-        if (node->type == NODE_STRONG)        { open = "<b>"; close = "</b>"; }
+        if (node->type == NODE_STRONG)             { open = "<b>"; close = "</b>"; }
         else if (node->type == NODE_STRIKETHROUGH) { open = "<s>"; close = "</s>"; }
-        else if (node->type == NODE_LINK)     {
-            open  = "<span foreground=\"#5a9cb8\" underline=\"single\">";
-            close = "</span>";
+        else if (node->type == NODE_LINK) {
+            // SSOT-routed via link_span_open() — never write hex literals.
+            out.append(link_span_open());
+            build_inline_children_with_math(out, node, set);
+            out.append("</span>");
+            return;
         }
         out.append(open);
         build_inline_children_with_math(out, node, set);
@@ -356,7 +408,8 @@ void render_paragraph_inline_math(RenderContext& ctx,
 // ── Per-node renderers ─────────────────────────────────────────────
 
 void render_heading(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
-    ctx.y += HEAD_SPACING_T;
+    const HeadingSpacing sp = heading_spacing(node->heading_level);
+    ctx.y += sp.mt;
     auto layout = create_heading_layout(ctx.cr, content_width, node->heading_level);
     std::string markup;
     build_inline_children(markup, node);
@@ -365,14 +418,20 @@ void render_heading(RenderContext& ctx, const ase::markdown::Node* node, int con
     draw_layout(ctx.cr, layout, ctx.margin_left, ctx.y);
     int w = 0, h = 0;
     layout->get_pixel_size(w, h);
-    ctx.y += h + HEAD_SPACING_B;
+    ctx.y += h;
     if (node->heading_level == 1) {
-        ctx.cr->set_source_rgba(1, 1, 1, 0.05);
+        // Web h1: pb-1.5 (6) + border-bottom 1 px BORDER_A30.
+        ctx.y += H1_PB;
+        ctx.cr->set_source_rgba(rgb_r(::ase::colors::BORDER_A30),
+                                rgb_g(::ase::colors::BORDER_A30),
+                                rgb_b(::ase::colors::BORDER_A30),
+                                rgb_a(::ase::colors::BORDER_A30));
+        ctx.cr->set_line_width(1);
         ctx.cr->move_to(ctx.margin_left, ctx.y);
         ctx.cr->line_to(ctx.width - ctx.margin_right, ctx.y);
         ctx.cr->stroke();
-        ctx.y += 8;
     }
+    ctx.y += sp.mb;
 }
 
 void render_paragraph(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
@@ -450,15 +509,25 @@ void render_diff_block(RenderContext& ctx, const ase::markdown::Node* node, int 
 
         if (!line.empty()) {
             if (line[0] == '+') {
-                ctx.cr->set_source_rgba(0.25, 0.73, 0.31, 0.12);
+                ctx.cr->set_source_rgba(rgb_r(::ase::colors::DIFF_ADD_BG),
+                                        rgb_g(::ase::colors::DIFF_ADD_BG),
+                                        rgb_b(::ase::colors::DIFF_ADD_BG),
+                                        rgb_a(::ase::colors::DIFF_ADD_BG));
                 ctx.cr->rectangle(ctx.margin_left, ly - 1, content_width, LINE_H);
                 ctx.cr->fill();
-                ctx.cr->set_source_rgb(0.25, 0.73, 0.31);
+                ctx.cr->set_source_rgb(rgb_r(::ase::colors::DIFF_ADD_FG),
+                                       rgb_g(::ase::colors::DIFF_ADD_FG),
+                                       rgb_b(::ase::colors::DIFF_ADD_FG));
             } else if (line[0] == '-') {
-                ctx.cr->set_source_rgba(0.97, 0.32, 0.29, 0.12);
+                ctx.cr->set_source_rgba(rgb_r(::ase::colors::DIFF_REMOVE_BG),
+                                        rgb_g(::ase::colors::DIFF_REMOVE_BG),
+                                        rgb_b(::ase::colors::DIFF_REMOVE_BG),
+                                        rgb_a(::ase::colors::DIFF_REMOVE_BG));
                 ctx.cr->rectangle(ctx.margin_left, ly - 1, content_width, LINE_H);
                 ctx.cr->fill();
-                ctx.cr->set_source_rgb(0.97, 0.32, 0.29);
+                ctx.cr->set_source_rgb(rgb_r(::ase::colors::DIFF_REMOVE_FG),
+                                       rgb_g(::ase::colors::DIFF_REMOVE_FG),
+                                       rgb_b(::ase::colors::DIFF_REMOVE_FG));
             } else if (line[0] == '[') {
                 ctx.cr->set_source_rgb(MUTED_R, MUTED_G, MUTED_B);
             } else {
@@ -736,7 +805,7 @@ void render_image(RenderContext& ctx, const ase::markdown::Node* node, int conte
         return;
     }
     const std::string path = resolve_image_path(node->url);
-    const double h = ::ase::viewer::render::render_image(
+    const double h = ::ase::imgcache::render(
         ctx.cr, path, ctx.margin_left, ctx.y, content_width);
     ctx.y += h + PARA_SPACING;
 }

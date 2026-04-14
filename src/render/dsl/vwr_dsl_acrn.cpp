@@ -24,7 +24,21 @@
 namespace ase::viewer::render::dsl {
 
 double render_accordion(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
-    constexpr double HEADER_H = 30.0;
+    // Web 1:1 (cmsAccordionBlock.tsx):
+    //   container: my-4 (16 outer), border 1 px BORDER_A20, radius 4
+    //   header: px-4 py-3 (16/12), text-xs (12), TEXT_PANEL_WHITE
+    //           bg open=CMS_ACCORDION_HEADER_BG, closed=CMS_ACCORDION_BG
+    //   content: px-4 py-3 (16/12), text-2xs (10), TEXT_PANEL_MUTED,
+    //            bg CMS_ACCORDION_BG
+    //   panel divider: border-bottom 1 px BORDER_A20
+    constexpr double HDR_PX     = 16.0;  // px-4
+    constexpr double HDR_PY     = 12.0;  // py-3
+    constexpr double BODY_PX    = 16.0;  // px-4
+    constexpr double BODY_PY    = 12.0;  // py-3
+    constexpr int    HDR_TXT_PX = 12;    // text-xs
+    constexpr int    BODY_TXT_PX = 10;   // text-2xs
+    constexpr double RADIUS     = 4.0;
+    constexpr double HEADER_H   = HDR_TXT_PX + 2 * HDR_PY;
 
     const uint32_t this_idx = ctx.next_accordion_index;
     ctx.next_accordion_index += 1;
@@ -66,16 +80,27 @@ double render_accordion(RenderContext& ctx, const ase::markdown::Node* node, int
         const char* title_attr = get_attr(panel, "title");
         const double header_y = ctx.y + total_h;
 
-        ctx.cr->set_source_rgba(1.0, 1.0, 1.0, 0.03);
+        // Header background — open vs closed.
+        const uint32_t hdr_argb = is_open
+            ? ::ase::colors::CMS_ACCORDION_HEADER_BG
+            : ::ase::colors::CMS_ACCORDION_BG;
+        ctx.cr->set_source_rgb(rgb_r(hdr_argb), rgb_g(hdr_argb), rgb_b(hdr_argb));
         ctx.cr->rectangle(ctx.margin_left, header_y, cw, HEADER_H);
         ctx.cr->fill();
-        ctx.cr->set_source_rgba(1.0, 1.0, 1.0, 0.06);
-        ctx.cr->set_line_width(0.5);
+
+        // Panel divider — border-bottom 1 px BORDER_A20.
+        ctx.cr->set_source_rgba(rgb_r(::ase::colors::BORDER_A20),
+                                rgb_g(::ase::colors::BORDER_A20),
+                                rgb_b(::ase::colors::BORDER_A20),
+                                rgb_a(::ase::colors::BORDER_A20));
+        ctx.cr->set_line_width(1);
         ctx.cr->move_to(ctx.margin_left, header_y + HEADER_H);
         ctx.cr->line_to(ctx.margin_left + cw, header_y + HEADER_H);
         ctx.cr->stroke();
 
-        std::string title_markup = "<span foreground=\"#80deff\">";
+        std::string title_markup = "<span foreground=\"";
+        title_markup.append(color_hex(::ase::colors::CMS_ACCORDION_ICON));
+        title_markup.append("\">");
         title_markup.append(is_open ? "▼" : "▶");
         title_markup.append(" </span>");
         if (title_attr != nullptr) {
@@ -84,16 +109,19 @@ double render_accordion(RenderContext& ctx, const ase::markdown::Node* node, int
             title_markup.append("Section");
         }
 
-        auto title_layout = create_body_layout(ctx.cr, cw - 24);
+        auto title_layout = create_body_layout(ctx.cr, cw - 2 * static_cast<int>(HDR_PX));
         auto fd = title_layout->get_font_description();
         fd.set_weight(Pango::Weight::BOLD);
+        fd.set_size(HDR_TXT_PX * Pango::SCALE);
         title_layout->set_font_description(fd);
         title_layout->set_markup(title_markup);
         int hlw = 0, hlh = 0;
         title_layout->get_pixel_size(hlw, hlh);
 
-        ctx.cr->set_source_rgb(CYAN_R, CYAN_G, CYAN_B);
-        draw_layout(ctx.cr, title_layout, ctx.margin_left + 10, header_y + (HEADER_H - hlh) / 2.0);
+        ctx.cr->set_source_rgb(rgb_r(::ase::colors::TEXT_PANEL_WHITE),
+                               rgb_g(::ase::colors::TEXT_PANEL_WHITE),
+                               rgb_b(::ase::colors::TEXT_PANEL_WHITE));
+        draw_layout(ctx.cr, title_layout, ctx.margin_left + HDR_PX, header_y + (HEADER_H - hlh) / 2.0);
 
         // Hit region for clicking the header bar.
         if (ctx.regions != nullptr && ctx.regions->count < MAX_HIT_REGIONS) {
@@ -111,26 +139,43 @@ double render_accordion(RenderContext& ctx, const ase::markdown::Node* node, int
 
         if (is_open) {
             std::string body_markup = build_inline_content(panel);
-            auto body_layout = create_body_layout(ctx.cr, cw - 32);
+            auto body_layout = create_body_layout(ctx.cr, cw - 2 * static_cast<int>(BODY_PX));
+            auto body_fd = body_layout->get_font_description();
+            body_fd.set_size(BODY_TXT_PX * Pango::SCALE);
+            body_layout->set_font_description(body_fd);
             body_layout->set_markup(body_markup);
             int bw = 0, bh = 0;
             body_layout->get_pixel_size(bw, bh);
 
-            ctx.cr->set_source_rgba(1.0, 1.0, 1.0, 0.015);
-            ctx.cr->rectangle(ctx.margin_left, ctx.y + total_h, cw, bh + 2 * BLOCK_PAD);
+            const double body_full = bh + 2 * BODY_PY;
+
+            ctx.cr->set_source_rgb(rgb_r(::ase::colors::CMS_ACCORDION_BG),
+                                   rgb_g(::ase::colors::CMS_ACCORDION_BG),
+                                   rgb_b(::ase::colors::CMS_ACCORDION_BG));
+            ctx.cr->rectangle(ctx.margin_left, ctx.y + total_h, cw, body_full);
             ctx.cr->fill();
 
-            ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
-            draw_layout(ctx.cr, body_layout, ctx.margin_left + 16, ctx.y + total_h + BLOCK_PAD);
+            ctx.cr->set_source_rgb(rgb_r(::ase::colors::TEXT_PANEL_MUTED),
+                                   rgb_g(::ase::colors::TEXT_PANEL_MUTED),
+                                   rgb_b(::ase::colors::TEXT_PANEL_MUTED));
+            draw_layout(ctx.cr, body_layout, ctx.margin_left + BODY_PX, ctx.y + total_h + BODY_PY);
 
-            total_h += bh + 2 * BLOCK_PAD;
+            total_h += body_full;
         }
 
-        total_h += 2;
         ++panel_idx;
     }
 
-    return total_h + PARA_SPACING;
+    // Container outline border (1 px BORDER_A20).
+    ctx.cr->set_source_rgba(rgb_r(::ase::colors::BORDER_A20),
+                            rgb_g(::ase::colors::BORDER_A20),
+                            rgb_b(::ase::colors::BORDER_A20),
+                            rgb_a(::ase::colors::BORDER_A20));
+    ctx.cr->set_line_width(1);
+    rounded_rect(ctx.cr, ctx.margin_left, ctx.y, cw, total_h, RADIUS);
+    ctx.cr->stroke();
+
+    return total_h + 16.0;  // my-4 outer
 }
 
 }  // namespace ase::viewer::render::dsl

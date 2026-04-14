@@ -4,39 +4,103 @@
  * Parses code with language-specific grammars, walks the syntax tree,
  * and produces Pango markup with colored spans per token type.
  *
- * Colors from SSOT: sha-web-styles/src/colors.ts (vscDarkPlus-inspired)
+ * Token colors come from ase::colors::SYN_* (generated from colors.ts via
+ * sha-web-console). The SYN_* palette mirrors vscDarkPlus (the same theme
+ * used by react-syntax-highlighter in the web CMS viewer) so native and
+ * web syntax highlighting produce visually identical output.
+ *
+ * Tree-sitter is a C library — its grammar entry-points (tree_sitter_cpp,
+ * tree_sitter_python, …) are wrapped behind ase::treesitter::grammar_*()
+ * by the adapter at adapter/ase-adp-treesitter/. This file therefore
+ * has no extern "C" block of its own; the C linkage lives only in the
+ * adapter's header where the validator path-whitelist allows it.
  */
 
 #include "vwr_rndr_synt.hpp"
+
+#include "colors.hpp"
+#include <ase/adp/treesitter/grammars.hpp>
+#include <ase/utils/strops.hpp>
+
 #include <tree_sitter/api.h>
 #include <cstring>
 #include <string>
-
-// tree-sitter language declarations (from grammar libs)
-extern "C" {
-    const TSLanguage* tree_sitter_cpp();
-    const TSLanguage* tree_sitter_c();
-    const TSLanguage* tree_sitter_python();
-    const TSLanguage* tree_sitter_bash();
-    const TSLanguage* tree_sitter_json();
-    const TSLanguage* tree_sitter_typescript();
-}
 
 namespace ase::viewer::render {
 
 namespace {
 
-// Token colors (vscDarkPlus-inspired, matching web syntax theme)
-constexpr const char* COL_KEYWORD   = "#569cd6";  // blue — keywords
-constexpr const char* COL_TYPE      = "#4ec9b0";  // teal — types, classes
-constexpr const char* COL_STRING    = "#ce9178";  // orange — strings
-constexpr const char* COL_NUMBER    = "#b5cea8";  // green — numbers
-constexpr const char* COL_COMMENT   = "#6a9955";  // green — comments
-constexpr const char* COL_FUNCTION  = "#dcdcaa";  // yellow — function names
-constexpr const char* COL_OPERATOR  = "#d4d4d4";  // light gray — operators
-constexpr const char* COL_PREPROC   = "#c586c0";  // purple — preprocessor
-constexpr const char* COL_CONSTANT  = "#4fc1ff";  // bright blue — constants
-constexpr const char* COL_PARAM     = "#9cdcfe";  // light blue — parameters
+// ── SSOT-routed token colors (lazy-init from ase::colors::SYN_*) ──────
+// Each helper formats its underlying 0xAARRGGBB constant once at static
+// init via ase::utils::format_hex_color and returns a stable c_str()
+// pointer for the program lifetime. Never write hex literals here — add
+// the constant to colors.ts (section 22) instead and regenerate.
+
+const char* col_keyword() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_KEYWORD);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_type() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_TYPE);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_string() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_STRING);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_number() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_NUMBER);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_comment() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_COMMENT);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_function() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_FUNCTION);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_preproc() {
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_PREPROC);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
+const char* col_variable() {
+    // vscDarkPlus: variable, parameter, constant, property all share #9cdcfe.
+    static const std::string s = []() {
+        char b[8];
+        ::ase::utils::format_hex_color(b, sizeof(b), ::ase::colors::SYN_VARIABLE);
+        return std::string{b};
+    }();
+    return s.c_str();
+}
 
 // Map tree-sitter node type to color
 const char* node_type_color(const char* type) {
@@ -65,73 +129,78 @@ const char* node_type_color(const char* type) {
         std::strcmp(type, "true") == 0 || std::strcmp(type, "false") == 0 ||
         std::strcmp(type, "null") == 0 || std::strcmp(type, "nullptr") == 0 ||
         std::strcmp(type, "constexpr") == 0 || std::strcmp(type, "inline") == 0)
-        return COL_KEYWORD;
+        return col_keyword();
 
     // Types
     if (std::strstr(type, "type_identifier") || std::strstr(type, "primitive_type") ||
         std::strstr(type, "sized_type") || std::strcmp(type, "type") == 0)
-        return COL_TYPE;
+        return col_type();
 
     // Strings
     if (std::strstr(type, "string") || std::strstr(type, "char_literal") ||
         std::strstr(type, "raw_string"))
-        return COL_STRING;
+        return col_string();
 
     // Numbers
     if (std::strstr(type, "number") || std::strstr(type, "integer") ||
         std::strstr(type, "float"))
-        return COL_NUMBER;
+        return col_number();
 
     // Comments
     if (std::strstr(type, "comment"))
-        return COL_COMMENT;
+        return col_comment();
 
     // Function names
     if (std::strstr(type, "function") || std::strstr(type, "method") ||
         std::strstr(type, "call_expression"))
-        return COL_FUNCTION;
+        return col_function();
 
     // Preprocessor
     if (std::strstr(type, "preproc") || std::strstr(type, "include") ||
         std::strstr(type, "define") || std::strstr(type, "decorator"))
-        return COL_PREPROC;
+        return col_preproc();
+
+    // Variables / parameters / constants — vscDarkPlus uses #9cdcfe for all.
+    if (std::strstr(type, "identifier") || std::strstr(type, "parameter") ||
+        std::strstr(type, "constant") || std::strstr(type, "property"))
+        return col_variable();
 
     return nullptr;
 }
 
-// Escape XML for Pango markup
+// Escape XML for Pango markup. Plain if/else ladder — no switch (validator).
 void escape_append(std::string& out, const char* text, uint32_t len) {
     for (uint32_t i = 0; i < len; i++) {
-        switch (text[i]) {
-            case '&':  out += "&amp;"; break;
-            case '<':  out += "&lt;"; break;
-            case '>':  out += "&gt;"; break;
-            case '"':  out += "&quot;"; break;
-            case '\'': out += "&apos;"; break;
-            default:   out += text[i]; break;
-        }
+        const char c = text[i];
+        if      (c == '&')  out += "&amp;";
+        else if (c == '<')  out += "&lt;";
+        else if (c == '>')  out += "&gt;";
+        else if (c == '"')  out += "&quot;";
+        else if (c == '\'') out += "&apos;";
+        else                out += c;
     }
 }
 
-// Get tree-sitter language for a language name
+// Get tree-sitter language for a language name. Routes through the
+// ase::treesitter adapter — never call tree_sitter_*() directly here.
 const TSLanguage* get_language(const char* lang) {
     if (!lang) return nullptr;
     if (std::strcmp(lang, "cpp") == 0 || std::strcmp(lang, "c++") == 0 ||
         std::strcmp(lang, "cxx") == 0 || std::strcmp(lang, "hpp") == 0)
-        return tree_sitter_cpp();
+        return ::ase::treesitter::grammar_cpp();
     if (std::strcmp(lang, "c") == 0)
-        return tree_sitter_c();
+        return ::ase::treesitter::grammar_c();
     if (std::strcmp(lang, "python") == 0 || std::strcmp(lang, "py") == 0)
-        return tree_sitter_python();
+        return ::ase::treesitter::grammar_python();
     if (std::strcmp(lang, "bash") == 0 || std::strcmp(lang, "sh") == 0 ||
         std::strcmp(lang, "shell") == 0 || std::strcmp(lang, "zsh") == 0)
-        return tree_sitter_bash();
+        return ::ase::treesitter::grammar_bash();
     if (std::strcmp(lang, "json") == 0 || std::strcmp(lang, "jsonc") == 0)
-        return tree_sitter_json();
+        return ::ase::treesitter::grammar_json();
     if (std::strcmp(lang, "typescript") == 0 || std::strcmp(lang, "ts") == 0 ||
         std::strcmp(lang, "tsx") == 0 || std::strcmp(lang, "javascript") == 0 ||
         std::strcmp(lang, "js") == 0 || std::strcmp(lang, "jsx") == 0)
-        return tree_sitter_typescript();
+        return ::ase::treesitter::grammar_typescript();
     return nullptr;
 }
 
