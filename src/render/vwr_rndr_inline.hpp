@@ -16,7 +16,7 @@
  * span pointing at "Symbols Nerd Font Mono".
  *
  * Inline math currently renders the raw LaTeX in italic chartreuse —
- * proper glyph rendering through ase::microtex requires Cairo glyph
+ * proper glyph rendering through ase::adp::microtex requires Cairo glyph
  * injection inside Pango layouts which is a follow-up.
  *
  * Used by both vwr_rndr_doc.cpp (block dispatcher) and the DSL

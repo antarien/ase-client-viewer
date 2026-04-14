@@ -51,7 +51,7 @@ std::string compute_status_text(const std::string& path,
 
 }  // namespace
 
-ViewerWindow::ViewerWindow(ase::gtk::ApplicationWindow window)
+ViewerWindow::ViewerWindow(ase::adp::gtk::ApplicationWindow window)
     : m_window(std::move(window))
     , m_tree_view(m_read_tracker)
 {}
@@ -100,7 +100,7 @@ void ViewerWindow::build_ui() {
     m_paned.set_end_child(m_canvas.widget());
 
     // ── Main vertical layout: paned + status bar ──
-    // Layout widgets (Gtk::Box, Gtk::Paned) are NOT in the ase::gtk
+    // Layout widgets (Gtk::Box, Gtk::Paned) are NOT in the ase::adp::gtk
     // adapter, so we drive them through raw gtkmm calls on the underlying
     // Gtk::ApplicationWindow pointer.
     m_main_box.append(m_paned);

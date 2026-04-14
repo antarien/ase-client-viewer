@@ -1,5 +1,5 @@
 /**
- * ASE Viewer — LaTeX math renderer (thin wrapper over ase::microtex)
+ * ASE Viewer — LaTeX math renderer (thin wrapper over ase::adp::microtex)
  *
  * The previous hand-rolled KaTeX subset (600+ lines of tokenizer /
  * box-tree / Cairo draw code) is replaced by a one-call delegation to
@@ -27,8 +27,8 @@ MathResult render_math(
     double font_size,
     bool is_display
 ) {
-    const ase::microtex::MathResult r =
-        ase::microtex::render_math(cr, latex, latex_len, x, y, font_size, is_display);
+    const ase::adp::microtex::MathResult r =
+        ase::adp::microtex::render_math(cr, latex, latex_len, x, y, font_size, is_display);
 
     MathResult out;
     out.width    = r.width;
@@ -44,8 +44,8 @@ MathResult measure_math(
     double font_size,
     bool is_display
 ) {
-    const ase::microtex::MathResult r =
-        ase::microtex::measure_math(latex, latex_len, font_size, is_display);
+    const ase::adp::microtex::MathResult r =
+        ase::adp::microtex::measure_math(latex, latex_len, font_size, is_display);
 
     MathResult out;
     out.width    = r.width;

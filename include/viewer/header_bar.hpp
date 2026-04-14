@@ -9,7 +9,7 @@
  *              orchestrator through on_*() callback slots so this file
  *              owns the widgets but zero of the behaviour.
  *
- *              Kept as raw gtkmm because ase::gtk::HeaderBar wraps only
+ *              Kept as raw gtkmm because ase::adp::gtk::HeaderBar wraps only
  *              Gtk::HeaderBar itself, while ToggleButton is not yet in
  *              the adapter's surface.
  *

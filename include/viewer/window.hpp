@@ -6,7 +6,7 @@
  * @description Owns one instance of each UI feature (HeaderBar, TreeView,
  *              Canvas, StatusBar, KeyboardShortcuts, FileMonitor,
  *              ReadTracker, ViewerSettings) plus the top-level
- *              ase::gtk::ApplicationWindow. build_ui() wires everything
+ *              ase::adp::gtk::ApplicationWindow. build_ui() wires everything
  *              together; load_directory() / load_file() are the two
  *              state-mutating entry points everyone else routes through.
  *
@@ -40,7 +40,7 @@ namespace ase::viewer {
 
 class ViewerWindow {
 public:
-    explicit ViewerWindow(ase::gtk::ApplicationWindow window);
+    explicit ViewerWindow(ase::adp::gtk::ApplicationWindow window);
 
     /** Assemble the full UI: header, tree, canvas, status bar, shortcuts. */
     void build_ui();
@@ -81,7 +81,7 @@ private:
     std::string    m_config_dir;
     std::string    m_current_file;
 
-    ase::gtk::ApplicationWindow m_window;
+    ase::adp::gtk::ApplicationWindow m_window;
 
     HeaderBar         m_header;
     TreeView          m_tree_view;

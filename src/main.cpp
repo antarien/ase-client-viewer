@@ -1,7 +1,7 @@
 /**
  * @file        main.cpp
  * @brief       ASE TECH & DESIGN Viewer - entry point and lifecycle hooks
- * @description Pure orchestrator: creates the ase::gtk::Application, installs
+ * @description Pure orchestrator: creates the ase::adp::gtk::Application, installs
  *              the dark Adwaita color scheme and CSS once at startup, and
  *              hands every activate/open event to a freshly-created
  *              ViewerWindow. No UI logic, no feature code, no file system
@@ -32,8 +32,8 @@
 
 namespace {
 
-std::unique_ptr<ase::viewer::ViewerWindow> make_window(ase::gtk::Application& app) {
-    auto window = ase::gtk::ApplicationWindow::create(app);
+std::unique_ptr<ase::viewer::ViewerWindow> make_window(ase::adp::gtk::Application& app) {
+    auto window = ase::adp::gtk::ApplicationWindow::create(app);
     auto viewer_window = std::make_unique<ase::viewer::ViewerWindow>(std::move(window));
     viewer_window->build_ui();
     return viewer_window;
@@ -56,19 +56,19 @@ std::string default_docs_root() {
 }  // namespace
 
 int main(int argc, char* argv[]) {
-    auto app = ase::gtk::Application::create(
+    auto app = ase::adp::gtk::Application::create(
         "com.antarien.ase.viewer",
-        ase::gtk::Application::Flags::HandlesOpen);
+        ase::adp::gtk::Application::Flags::HandlesOpen);
 
     // Shared slot holding the currently-presented window so the app keeps it
     // alive for its whole lifetime.
     auto current_window = std::make_shared<std::unique_ptr<ase::viewer::ViewerWindow>>();
 
     app.on_startup([]() {
-        ase::adw::style_manager::init();
-        ase::adw::style_manager::set_color_scheme(ase::adw::ColorScheme::ForceDark);
+        ase::adp::adw::style_manager::init();
+        ase::adp::adw::style_manager::set_color_scheme(ase::adp::adw::ColorScheme::ForceDark);
 
-        auto css = ase::gtk::CssProvider::create();
+        auto css = ase::adp::gtk::CssProvider::create();
         css.load_from_data(ase::viewer::theme::generate_css());
         css.install_for_default_display();
     });
