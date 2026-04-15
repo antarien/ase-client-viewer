@@ -169,9 +169,20 @@ Canvas::Canvas() {
     m_drawing_area.set_draw_func(sigc::mem_fun(*this, &Canvas::on_draw));
     m_drawing_area.set_hexpand(true);
     m_drawing_area.set_vexpand(true);
+    // DrawingArea must be click-targetable: the default is true but be
+    // explicit so nothing downstream can silently strip event delivery
+    // (set_focusable false — we do NOT want the drawing area to steal
+    // keyboard focus from the sidebar tree view).
+    m_drawing_area.set_can_target(true);
+    m_drawing_area.set_focusable(false);
 
     auto click = Gtk::GestureClick::create();
     click->set_button(GDK_BUTTON_PRIMARY);
+    // CAPTURE phase so the ScrolledWindow's internal kinetic-scroll
+    // controller cannot claim our click before it reaches our handler.
+    // The default BUBBLE phase runs after parent gestures and GTK4's
+    // ScrolledWindow can win a click-vs-drag contest on small motion.
+    click->set_propagation_phase(Gtk::PropagationPhase::CAPTURE);
     click->signal_pressed().connect(
         [this](int /*n_press*/, double cx, double cy) {
             handle_click(cx, cy);

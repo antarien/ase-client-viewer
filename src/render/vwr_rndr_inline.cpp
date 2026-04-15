@@ -214,6 +214,21 @@ void build_inline_markup(std::string& out, const ase::markdown::Node* node) {
         out.append("\">{version}</span>");
         return;
     }
+    if (node->type == NODE_TEXT_DIRECTIVE) {
+        // Inline `:tip[visible text]{tooltip content}` — the parser stores
+        // the visible text in node->text and the tooltip content in
+        // node->title. Native Pango has no hover tooltip channel, so the
+        // visible text is rendered with a subtle dotted underline in the
+        // glossary-underline color to signal "annotated". The tooltip
+        // text itself requires a paint-time hover callback — the dotted
+        // underline is the static-render marker.
+        out.append("<span underline=\"low\" underline_color=\"");
+        out.append(css(::ase::colors::CMS_GLOSSARY_UNDERLINE));
+        out.append("\">");
+        append_escaped(out, node->text, node->text_len);
+        out.append("</span>");
+        return;
+    }
 
     // Container fallback — recurse for unknown inline-ish wrappers.
     build_inline_children(out, node);

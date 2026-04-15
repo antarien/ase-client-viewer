@@ -59,12 +59,21 @@ private:
     void handle_file_activated(const std::string& path);
     void handle_mode_changed(uint8_t mode);
     void handle_search_changed(const std::string& lowered);
+    void handle_search_toggle();
     void handle_mark_all_read();
     void handle_open_settings();
     void handle_refresh();
     void handle_escape();
     void handle_focus_search();
     void handle_copy_dump();
+
+    /**
+     * CAPTURE-phase key handler: routes printable keystrokes into the
+     * search entry (opening it if needed) so the user can start typing
+     * to filter the sidebar without clicking the magnifier button first.
+     * Returns true when the key was consumed.
+     */
+    bool handle_type_ahead(unsigned keyval, unsigned state);
 
     // Internal helpers.
     void open_file(const std::string& path);
