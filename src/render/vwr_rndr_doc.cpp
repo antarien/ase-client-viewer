@@ -44,6 +44,7 @@
 #include "vwr_rndr_mmrd.hpp"
 #include "vwr_rndr_math.hpp"
 #include "vwr_rndr_amdl.hpp"
+#include "vwr_rndr_image_path.hpp"
 #include <ase/imgcache/image_cache.hpp>
 #include "vwr_rndr_synt.hpp"
 #include "dsl/vwr_dsl_dispatch.hpp"
@@ -779,25 +780,6 @@ void render_asemath_plot(RenderContext& ctx, const ase::markdown::Node* node, in
     }
 }
 
-// Resolve a markdown image URL to a filesystem path the GdkPixbuf loader
-// can open. Demo files reference /cms/images/... absolute paths which map
-// onto the web client's public/ tree at build time via ASE_WEB_PUBLIC_ROOT.
-std::string resolve_image_path(const char* url) {
-    if (url == nullptr || url[0] == '\0') return std::string{};
-    // file:// URI — strip the prefix.
-    if (url[0] == 'f' && url[1] == 'i' && url[2] == 'l' && url[3] == 'e' &&
-        url[4] == ':' && url[5] == '/' && url[6] == '/') {
-        return std::string{url + 7};
-    }
-    // Absolute web path — rewrite onto the bundled public root.
-    if (url[0] == '/') {
-        return std::string{ASE_WEB_PUBLIC_ROOT} + url;
-    }
-    // http(s):// — not supported, return as-is so the renderer falls back
-    // to a placeholder.
-    return std::string{url};
-}
-
 void render_image(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
     ctx.y += 4;
     if (node->url == nullptr) {
@@ -865,9 +847,26 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
         render_image(ctx, node, content_width); return;
     }
     if (node->type == NODE_BLOCK_DIRECTIVE ||
-        node->type == NODE_LEAF_DIRECTIVE  ||
-        node->type == NODE_TEXT_DIRECTIVE) {
+        node->type == NODE_LEAF_DIRECTIVE) {
         dsl::render_directive(ctx, node);
+        return;
+    }
+    if (node->type == NODE_TEXT_DIRECTIVE) {
+        // Top-level text directives only happen when a paragraph was
+        // mutated by pass_inline_extensions into its first inline child's
+        // type (parser markdown_prs_drct.cpp ~628). Render as an inline
+        // paragraph — never dispatch to the DSL block dispatcher which
+        // would draw a purple placeholder box around a single line of
+        // text.
+        auto layout = create_body_layout(ctx.cr, content_width);
+        std::string markup;
+        build_inline_markup(markup, node);
+        set_layout_markup(layout, markup);
+        ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
+        draw_layout(ctx.cr, layout, ctx.margin_left, ctx.y);
+        int w = 0, h = 0;
+        layout->get_pixel_size(w, h);
+        ctx.y += h + PARA_SPACING;
         return;
     }
     if (node->type == NODE_NERDFONT_ICON ||

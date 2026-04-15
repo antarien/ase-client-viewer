@@ -21,6 +21,10 @@
 #include <gdkmm/clipboard.h>
 #include <glibmm/refptr.h>
 
+#include <gdk/gdk.h>
+#include <gtk/gtk.h>
+#include <glib.h>
+
 #include <cctype>
 #include <cstdlib>
 #include <string>
@@ -79,8 +83,14 @@ void ViewerWindow::build_ui() {
     m_header.on_search_text([this](const std::string& lowered) {
         handle_search_changed(lowered);
     });
+    m_header.on_search_toggle([this]() {
+        handle_search_toggle();
+    });
     m_header.on_mark_all_read([this]() {
         handle_mark_all_read();
+    });
+    m_header.on_refresh([this]() {
+        handle_refresh();
     });
     m_header.on_settings([this]() {
         handle_open_settings();
@@ -115,6 +125,24 @@ void ViewerWindow::build_ui() {
     m_shortcuts.on_mode([this](uint8_t mode) { handle_mode_changed(mode); });
     m_shortcuts.on_copy_dump   ([this]() { handle_copy_dump(); });
     m_shortcuts.install_on(*m_window.native_widget());
+
+    // ── Type-ahead search ──
+    // Any printable keystroke (no modifiers) opens the search bar and
+    // seeds the entry with the typed character. Mirrors the
+    // ase-client-explorer type-ahead handler: CAPTURE phase so the
+    // tree view's own keyboard controller doesn't consume the key first.
+    {
+        GtkEventController* type_ahead = gtk_event_controller_key_new();
+        gtk_event_controller_set_propagation_phase(type_ahead, GTK_PHASE_CAPTURE);
+        g_signal_connect(type_ahead, "key-pressed",
+            G_CALLBACK(+[](GtkEventControllerKey*, guint keyval, guint,
+                           GdkModifierType state, gpointer self) -> gboolean {
+                auto* w = static_cast<ViewerWindow*>(self);
+                return w->handle_type_ahead(keyval, static_cast<unsigned>(state)) ? TRUE : FALSE;
+            }), this);
+        gtk_widget_add_controller(
+            GTK_WIDGET(m_window.native()->gobj()), type_ahead);
+    }
 }
 
 void ViewerWindow::load_directory(const std::string& path) {
@@ -161,6 +189,18 @@ void ViewerWindow::handle_search_changed(const std::string& lowered) {
     m_tree_view.set_search(lowered);
 }
 
+void ViewerWindow::handle_search_toggle() {
+    // Magnifier button click / Ctrl+F / Escape from inside the entry all
+    // funnel through here. Toggle visibility and reset the tree-view
+    // filter when closing so the user doesn't get "stuck" in a filtered
+    // state when they dismiss the bar.
+    const bool show = !m_header.search_visible();
+    m_header.toggle_search(show);
+    if (!show) {
+        m_tree_view.set_search("");
+    }
+}
+
 void ViewerWindow::handle_mark_all_read() {
     m_tree_view.mark_all_read_display();
 
@@ -189,12 +229,56 @@ void ViewerWindow::handle_refresh() {
 }
 
 void ViewerWindow::handle_escape() {
-    m_header.clear_search();
-    m_tree_view.grab_focus();
+    // Two-tier Escape: first press closes the search bar (if open);
+    // second press closes the window. Mirrors the ase-client-explorer
+    // convention. Clearing the filter on close prevents the tree from
+    // staying in a filtered state after the bar is dismissed.
+    if (m_header.search_visible()) {
+        m_header.toggle_search(false);
+        m_tree_view.set_search("");
+        m_tree_view.grab_focus();
+        return;
+    }
+    gtk_window_close(GTK_WINDOW(m_window.native()->gobj()));
 }
 
 void ViewerWindow::handle_focus_search() {
-    m_header.focus_search();
+    // Ctrl+F: open the search bar if closed, otherwise re-focus the
+    // entry so the user can keep typing.
+    if (!m_header.search_visible()) {
+        m_header.toggle_search(true);
+    } else {
+        m_header.focus_search();
+    }
+}
+
+bool ViewerWindow::handle_type_ahead(unsigned keyval, unsigned state) {
+    // Already in search mode → let the entry handle the key normally.
+    if (m_header.search_visible()) return false;
+
+    // Skip when any modifier is held so Ctrl+F / F5 / Alt+… keep
+    // routing to their own shortcut handlers untouched.
+    constexpr unsigned MODIFIERS =
+        static_cast<unsigned>(GDK_CONTROL_MASK) |
+        static_cast<unsigned>(GDK_ALT_MASK)     |
+        static_cast<unsigned>(GDK_SUPER_MASK)   |
+        static_cast<unsigned>(GDK_META_MASK);
+    if (state & MODIFIERS) return false;
+
+    // Non-printable keys (arrows, Enter, Tab, F-keys, Escape …) convert
+    // to 0 or a control character — those fall through.
+    const gunichar uc = gdk_keyval_to_unicode(keyval);
+    if (uc == 0 || g_unichar_iscntrl(uc)) return false;
+
+    // Open the search bar and seed it with the typed character.
+    m_header.toggle_search(true);
+
+    char utf8[8] = {0};
+    const int len = g_unichar_to_utf8(uc, utf8);
+    utf8[len] = '\0';
+    m_header.seed_search_with(std::string{utf8});
+
+    return true;
 }
 
 void ViewerWindow::handle_copy_dump() {

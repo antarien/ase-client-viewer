@@ -46,12 +46,22 @@ double render_directive(RenderContext& ctx, const ase::markdown::Node* node) {
     else if (name_is(node, "columns"))   h = render_columns(ctx, node, cw);
     else if (name_is(node, "terminal"))  h = render_terminal(ctx, node, cw);
     else if (name_is(node, "matrix"))    h = render_matrix(ctx, node, cw);
+    else if (name_is(node, "figure"))    h = render_figure(ctx, node, cw);
+    else if (name_is(node, "gallery"))   h = render_gallery(ctx, node, cw);
+    else if (name_is(node, "compare"))   h = render_compare(ctx, node, cw);
+    else if (name_is(node, "team"))      h = render_team(ctx, node, cw);
+    else if (name_is(node, "author"))    h = render_author(ctx, node, cw);
+    else if (name_is(node, "changelog")) h = render_changelog(ctx, node, cw);
+    else if (name_is(node, "toc"))       h = render_toc(ctx, node, cw);
     // Leaf directives.
     else if (name_is(node, "badge"))     h = render_badge(ctx, node, cw);
     else if (name_is(node, "divider"))   h = render_divider(ctx, cw);
-    else if (name_is(node, "spacer"))    h = render_spacer(ctx);
+    else if (name_is(node, "spacer"))    h = render_spacer(ctx, node);
     else if (name_is(node, "progress"))  h = render_progress(ctx, node, cw);
     else if (name_is(node, "kbd"))       h = render_kbd(ctx, node);
+    else if (name_is(node, "video"))     h = render_video(ctx, node, cw);
+    else if (name_is(node, "audio"))     h = render_audio(ctx, node, cw);
+    else if (name_is(node, "download"))  h = render_download(ctx, node, cw);
     // Generic fallback.
     else                                  h = render_generic(ctx, node, cw);
 
