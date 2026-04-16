@@ -86,10 +86,10 @@ get_status() {
         if [ -n "$result" ]; then
             echo "$result"
         else
-            echo "stub"
+            echo "seed"
         fi
     else
-        echo "stub"
+        echo "seed"
     fi
 }
 
@@ -114,7 +114,7 @@ bump_build() {
 get_status_color() {
     local status_val="$1"
     case "$status_val" in
-        stub)       echo "${GRAY}" ;;
+        seed)       echo "${GRAY}" ;;
         poc)        echo "${MAGENTA}" ;;
         init)       echo "${YELLOW}" ;;
         core)       echo "${YELLOW}" ;;
@@ -130,7 +130,7 @@ get_status_color() {
 get_status_icon() {
     local status_val="$1"
     case "$status_val" in
-        stub)   echo "○" ;;
+        seed)   echo "○" ;;
         poc)    echo "◐" ;;
         init)   echo "◑" ;;
         core)   echo "◒" ;;
