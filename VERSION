@@ -39,10 +39,10 @@
 #   stable = Production ready (set manually)
 #
 # ==============================================================================
-ASE_CLIENT_VIEWER=00.00.19.00019
+ASE_CLIENT_VIEWER=00.00.20.00020
 ASE_CLIENT_VIEWER_NAME=TECH & DESIGN Viewer
 ASE_CLIENT_VIEWER_DESC=Native GTK4 markdown documentation viewer with ECS architecture
 ASE_CLIENT_VIEWER_LAYER=5
 ASE_CLIENT_VIEWER_STATUS=init
 ASE_CLIENT_VIEWER_CREATED=2026-04-12
-ASE_CLIENT_VIEWER_UPDATED=2026-04-15
+ASE_CLIENT_VIEWER_UPDATED=2026-04-24

@@ -64,3 +64,37 @@ ase-viewer                       # Default: opens docs/ase-docs/tech/
 - **gtkmm-4.0** (system)
 - **libadwaita-1** (system)
 - **ase-markdown** (Layer 1 parser, FetchContent via ase-alloc + cmark-gfm)
+
+## Dev Status & Explorer Integration (Pre-Release)
+
+The viewer is **not yet installed system-wide** — `packaging/ase-viewer.desktop` + `PKGBUILD` exist but are not published to AUR. The binary lives at `clients/ase-client-viewer/build/bin/ase-viewer` and is not on `PATH`.
+
+To make the dev build discoverable by `ase-client-explorer` (Open-With dialog, file-association mapping via Gio `GAppInfo`), register a user-scope `.desktop` entry with an **absolute `Exec=` path**:
+
+```bash
+cat > ~/.local/share/applications/ase-viewer.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=ASE TECH & DESIGN Viewer (dev)
+GenericName=Markdown Viewer
+Comment=Native documentation viewer with TECH and DESIGN modes (dev build)
+Exec=/mnt/code/SRC/GITHUB/ase/clients/ase-client-viewer/build/bin/ase-viewer %F
+Terminal=false
+MimeType=text/markdown;text/x-markdown;
+Categories=Documentation;Development;TextEditor;
+Keywords=markdown;documentation;ase;viewer;
+StartupWMClass=com.antarien.ase.viewer
+EOF
+update-desktop-database ~/.local/share/applications/
+```
+
+After registration, the viewer appears in `gio mime text/markdown` under "Recommended applications" and in Explorer's Open-With dialog. Explorer persists the chosen mapping in `~/.config/ase/explorer/file-associations.json`.
+
+**Rollback:**
+
+```bash
+rm ~/.local/share/applications/ase-viewer.desktop
+update-desktop-database ~/.local/share/applications/
+```
+
+Replace this entry with the official system-wide install (`/usr/share/applications/ase-viewer.desktop` via PKGBUILD) once the viewer reaches release status.
