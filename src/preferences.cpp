@@ -18,6 +18,7 @@
  */
 
 #include <viewer/preferences.hpp>
+#include <viewer/folder_picker.hpp>
 
 #include <ase/adp/adw/adw.hpp>
 
@@ -166,6 +167,22 @@ void cb_code_font_changed(GObject* obj, GParamSpec*, gpointer) {
     save_and_notify();
 }
 
+void cb_browse_root_clicked(GtkButton* btn, gpointer user_data) {
+    GtkWidget*  entry  = GTK_WIDGET(user_data);
+    GtkRoot*    root   = gtk_widget_get_root(GTK_WIDGET(btn));
+    GtkWindow*  parent = GTK_IS_WINDOW(root) ? GTK_WINDOW(root) : nullptr;
+
+    const char* current = gtk_editable_get_text(GTK_EDITABLE(entry));
+    std::string start = current != nullptr ? std::string{current} : std::string{};
+
+    folder_picker::show(parent, start,
+        [entry](const std::string& path) {
+            // Writing into the entry triggers cb_default_root_changed,
+            // which in turn updates ViewerSettings::default_root.
+            gtk_editable_set_text(GTK_EDITABLE(entry), path.c_str());
+        });
+}
+
 void cb_default_root_changed(GtkEditable* e, gpointer) {
     PrefContext& c = ctx();
     if (c.settings == nullptr) return;
@@ -295,7 +312,18 @@ GtkWidget* build_documents_page() {
     gtk_widget_set_halign(root_entry, GTK_ALIGN_FILL);
     g_signal_connect(root_entry, "changed",
                      G_CALLBACK(cb_default_root_changed), nullptr);
-    gtk_box_append(GTK_BOX(root_cell), root_entry);
+
+    GtkWidget* path_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, t::space_xs);
+    gtk_widget_set_hexpand(path_row, TRUE);
+    gtk_box_append(GTK_BOX(path_row), root_entry);
+
+    GtkWidget* browse_btn = gtk_button_new_with_label("Browse…");
+    gtk_widget_set_tooltip_text(browse_btn, "Pick a directory via folder picker");
+    g_signal_connect(browse_btn, "clicked",
+                     G_CALLBACK(cb_browse_root_clicked), root_entry);
+    gtk_box_append(GTK_BOX(path_row), browse_btn);
+
+    gtk_box_append(GTK_BOX(root_cell), path_row);
 
     gtk_box_append(GTK_BOX(page), root_cell);
 

@@ -23,6 +23,7 @@
 
 #include <gdk/gdk.h>
 #include <gtk/gtk.h>
+#include <gio/gio.h>
 #include <glib.h>
 
 #include <cctype>
@@ -143,6 +144,42 @@ void ViewerWindow::build_ui() {
         gtk_widget_add_controller(
             GTK_WIDGET(m_window.native()->gobj()), type_ahead);
     }
+
+    // ── Drop target ──
+    // Files / folders dragged from a file manager land here and open
+    // directly inside the viewer. Single-item drop only; for a directory
+    // we replace the tree root, for a regular file we open it.
+    setup_drop_target();
+}
+
+void ViewerWindow::setup_drop_target() {
+    GtkDropTarget* drop = gtk_drop_target_new(G_TYPE_FILE, GDK_ACTION_COPY);
+    g_signal_connect(drop, "drop",
+        G_CALLBACK(+[](GtkDropTarget*, const GValue* value, double, double,
+                       gpointer self) -> gboolean {
+            if (value == nullptr || !G_VALUE_HOLDS(value, G_TYPE_FILE)) {
+                return FALSE;
+            }
+            GFile* gfile = G_FILE(g_value_get_object(value));
+            if (gfile == nullptr) return FALSE;
+            char* path_c = g_file_get_path(gfile);
+            if (path_c == nullptr) return FALSE;
+            std::string path{path_c};
+            g_free(path_c);
+
+            auto* w = static_cast<ViewerWindow*>(self);
+            if (fs::is_directory(path)) {
+                w->load_directory(path);
+                return TRUE;
+            }
+            if (fs::is_regular_file(path)) {
+                w->load_file(path);
+                return TRUE;
+            }
+            return FALSE;
+        }), this);
+    gtk_widget_add_controller(
+        GTK_WIDGET(m_window.native()->gobj()), GTK_EVENT_CONTROLLER(drop));
 }
 
 void ViewerWindow::load_directory(const std::string& path) {
