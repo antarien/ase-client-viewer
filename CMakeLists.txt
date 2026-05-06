@@ -300,12 +300,42 @@ target_include_directories(ase-viewer PRIVATE
 add_dependencies(ase-viewer viewer_nerdfont_table)
 
 # Web public root — used by the image renderer to resolve absolute
-# /cms/images/... paths that the CMS-style demo files reference. The
-# native viewer is built against the same image assets the web client
-# ships, so the SSOT path is clients/ase-client-web/public/.
+# /cms/images/... paths that the CMS-style demo files reference. Defaults
+# to the in-tree dev path; AUR / packaged builds override this via
+#   -DASE_WEB_PUBLIC_ROOT=/usr/share/ase-viewer/public
+# so the resulting binary does not bake a $srcdir reference into itself
+# (makepkg flags that as a packaging warning, and the path would be gone
+# after the build sandbox is cleaned up anyway).
+set(ASE_WEB_PUBLIC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../ase-client-web/public"
+    CACHE STRING "Resolves absolute /cms/images/... markdown URLs at runtime")
 target_compile_definitions(ase-viewer PRIVATE
-    ASE_WEB_PUBLIC_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/../ase-client-web/public"
+    ASE_WEB_PUBLIC_ROOT="${ASE_WEB_PUBLIC_ROOT}"
 )
+
+# Suppress upstream-specific warnings on transitive dependencies we do
+# not own. Each is a known issue in the dependency itself and would
+# otherwise be silenced via "kosmetisch"-style rationalisation.
+#
+# cmark-gfm: -Wstringop-overflow false-positive on the sentinel buffer
+#            pattern (cmark_strbuf__initbuf size 1, write at offset 1).
+# microtex_core: -Wunused-result ignored asprintf return in latex.cpp:57,
+#                plus -fvar-tracking-assignments size limit on the giant
+#                tex_symbols.res.cpp static initialiser.
+# cmark sentinel-buffer false-positive fires at LINK time during GCC's
+# inter-procedural analysis (esp. with makepkg's -O2 default), so we
+# need to silence it on every target that links cmark code: the static
+# library itself, the cmark-gfm helper executable that the upstream
+# CMakeLists builds transitively, and our own ase-viewer executable.
+foreach(_t libcmark-gfm_static cmark-gfm ase-viewer)
+    if(TARGET ${_t})
+        target_compile_options(${_t} PRIVATE -Wno-stringop-overflow)
+    endif()
+endforeach()
+if(TARGET microtex_core)
+    target_compile_options(microtex_core PRIVATE
+        -Wno-unused-result
+        -fno-var-tracking-assignments)
+endif()
 
 target_include_directories(ase-viewer PRIVATE
     ${tree_sitter_SOURCE_DIR}/lib/include
