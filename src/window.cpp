@@ -251,11 +251,25 @@ void ViewerWindow::handle_mark_all_read() {
 }
 
 void ViewerWindow::handle_open_settings() {
+    // Capture the default_root the prefs window opened with. Every
+    // setting-change inside the prefs window fires on_changed; if the
+    // root has been swapped (typically via the Browse… button) we reload
+    // the tree so the user sees their new docs root immediately —
+    // otherwise the change only takes effect on the next viewer launch.
+    const std::string root_before = m_settings.default_root;
     show_preferences_window(
         *m_window.native(),
         m_settings,
         m_config_dir,
-        sigc::slot<void()>([this]() { m_canvas.queue_draw(); }));
+        sigc::slot<void()>([this, root_before]() {
+            m_canvas.queue_draw();
+            const std::string& root_after = m_settings.default_root;
+            if (root_after != root_before
+                && !root_after.empty()
+                && fs::is_directory(root_after)) {
+                load_directory(root_after);
+            }
+        }));
 }
 
 void ViewerWindow::handle_refresh() {
