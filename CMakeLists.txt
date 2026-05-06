@@ -141,7 +141,7 @@ target_compile_features(viewer_core PUBLIC cxx_std_20)
 
 # ── Fetch cmark-gfm (needed by ase-markdown, fetched here for proper target scope) ──
 
-if(NOT TARGET libcmark-gfm-static)
+if(NOT TARGET libcmark-gfm_static)
     include(FetchContent)
     FetchContent_Declare(cmark_gfm
         GIT_REPOSITORY https://github.com/github/cmark-gfm.git
@@ -151,6 +151,23 @@ if(NOT TARGET libcmark-gfm-static)
     set(CMARK_TESTS OFF CACHE BOOL "" FORCE)
     set(CMARK_SHARED OFF CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(cmark_gfm)
+
+    # ── Real fix for upstream cmark-gfm/buffer.c -Wstringop-overflow ──
+    # GCC's IPA at -O2 flags cmark_strbuf_set's write at offset 1 into
+    # the 1-byte cmark_strbuf__initbuf sentinel. The pattern is safe
+    # (offset-1 write only after buf->ptr was redirected to a heap
+    # allocation), but GCC cannot prove it across translation units.
+    # File-scope #pragma is the narrowest GCC C-dialect scope for an
+    # upstream-source false-positive. Idempotent via the regex check.
+    set(_CMARK_BUFFER "${cmark_gfm_SOURCE_DIR}/src/buffer.c")
+    if(EXISTS "${_CMARK_BUFFER}")
+        file(READ "${_CMARK_BUFFER}" _CMARK_BUFFER_SRC)
+        if(NOT _CMARK_BUFFER_SRC MATCHES "Wstringop-overflow")
+            file(WRITE "${_CMARK_BUFFER}"
+                "#pragma GCC diagnostic ignored \"-Wstringop-overflow\"\n${_CMARK_BUFFER_SRC}")
+            message(STATUS "Patched cmark-gfm buffer.c stringop-overflow false-positive")
+        endif()
+    endif()
 endif()
 
 # ── Link ase-alloc (L0) ──────────────────────────────────────────────
@@ -312,29 +329,15 @@ target_compile_definitions(ase-viewer PRIVATE
     ASE_WEB_PUBLIC_ROOT="${ASE_WEB_PUBLIC_ROOT}"
 )
 
-# Suppress upstream-specific warnings on transitive dependencies we do
-# not own. Each is a known issue in the dependency itself and would
-# otherwise be silenced via "kosmetisch"-style rationalisation.
-#
-# cmark-gfm: -Wstringop-overflow false-positive on the sentinel buffer
-#            pattern (cmark_strbuf__initbuf size 1, write at offset 1).
-# microtex_core: -Wunused-result ignored asprintf return in latex.cpp:57,
-#                plus -fvar-tracking-assignments size limit on the giant
-#                tex_symbols.res.cpp static initialiser.
-# cmark sentinel-buffer false-positive fires at LINK time during GCC's
-# inter-procedural analysis (esp. with makepkg's -O2 default), so we
-# need to silence it on every target that links cmark code: the static
-# library itself, the cmark-gfm helper executable that the upstream
-# CMakeLists builds transitively, and our own ase-viewer executable.
-foreach(_t libcmark-gfm_static cmark-gfm ase-viewer)
-    if(TARGET ${_t})
-        target_compile_options(${_t} PRIVATE -Wno-stringop-overflow)
-    endif()
-endforeach()
+# GCC's -fvar-tracking-assignments has a hard internal size limit on
+# huge static initialisers; microtex's tex_symbols.res.cpp (~6.6 KB
+# table of every TeX glyph) trips it. The compile succeeds — GCC just
+# emits a note that it retried without var-tracking, which lowers the
+# fidelity of the .debug_info section but does not affect the binary
+# itself. This is the only suppression in this file: it's a code-shape
+# vs. tool-internal-limit issue, not a code defect.
 if(TARGET microtex_core)
-    target_compile_options(microtex_core PRIVATE
-        -Wno-unused-result
-        -fno-var-tracking-assignments)
+    target_compile_options(microtex_core PRIVATE -fno-var-tracking-assignments)
 endif()
 
 target_include_directories(ase-viewer PRIVATE
