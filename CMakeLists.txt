@@ -168,6 +168,17 @@ if(NOT TARGET libcmark-gfm_static)
             message(STATUS "Patched cmark-gfm buffer.c stringop-overflow false-positive")
         endif()
     endif()
+
+    # The file-scope #pragma above silences the warning at COMPILE time.
+    # GCC also emits the same warning at LINK time via IPA when -O2 +
+    # -flto-style analysis sees buf->ptr[buf->size] inlined into callers.
+    # File-scope pragmas don't propagate through link, so we additionally
+    # silence on the link line of every consumer that pulls cmark code:
+    # the cmark-gfm helper executable that upstream's CMake builds and
+    # any of our targets linking the static lib.
+    if(TARGET cmark-gfm)
+        target_link_options(cmark-gfm PRIVATE -Wno-stringop-overflow)
+    endif()
 endif()
 
 # ── Link ase-alloc (L0) ──────────────────────────────────────────────
@@ -374,6 +385,11 @@ if(GRAPHVIZ_FOUND)
     target_link_libraries(ase-viewer PRIVATE PkgConfig::GRAPHVIZ)
     target_compile_definitions(ase-viewer PRIVATE HAVE_GRAPHVIZ)
 endif()
+
+# Same link-time IPA suppression for ase-viewer as for cmark-gfm above —
+# cmark static lib gets pulled in here too, and GCC re-runs the same
+# stringop-overflow false-positive at the ase-viewer link line.
+target_link_options(ase-viewer PRIVATE -Wno-stringop-overflow)
 
 set_target_properties(ase-viewer PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
