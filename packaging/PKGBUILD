@@ -42,4 +42,10 @@ package() {
 
     install -Dm644 packaging/ase-viewer.desktop \
         "$pkgdir/usr/share/applications/ase-viewer.desktop"
+
+    # Brand icons (Down→Top: synced from sha-web-resources/generated/ase/ via build.sh)
+    for size in 16 32 48 192 512; do
+        install -Dm644 "packaging/icons/icon-${size}.png" \
+            "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/ase-viewer.png"
+    done
 }
