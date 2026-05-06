@@ -269,6 +269,7 @@ add_executable(ase-viewer
     src/canvas.cpp
     src/settings.cpp
     src/preferences.cpp
+    src/folder_picker.cpp
     src/render/vwr_rndr_text.cpp
     src/render/vwr_rndr_inline.cpp
     src/render/vwr_rndr_doc.cpp

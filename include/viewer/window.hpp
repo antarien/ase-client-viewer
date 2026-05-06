@@ -54,6 +54,11 @@ public:
     /** Forward to the underlying ApplicationWindow. */
     void present();
 
+    /** Read access to the loaded settings (used by main.cpp to resolve
+     *  the startup directory: prefer settings.default_root over the
+     *  binary-relative dev fallback). */
+    const ViewerSettings& settings() const { return m_settings; }
+
 private:
     // Handlers invoked by the feature slices via their stored slots.
     void handle_file_activated(const std::string& path);
@@ -77,6 +82,9 @@ private:
 
     // Internal helpers.
     void open_file(const std::string& path);
+    /** Install a GtkDropTarget on the toplevel window so dragged files /
+     *  folders from a file manager open directly inside the viewer. */
+    void setup_drop_target();
     void switch_mode_directory(uint8_t target_mode);
     void resolve_config_dir();
     void setup_file_watch(const std::string& root);

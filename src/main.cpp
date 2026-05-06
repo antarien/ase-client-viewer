@@ -75,10 +75,21 @@ int main(int argc, char* argv[]) {
 
     app.on_activate([&app, current_window]() {
         auto win = make_window(app);
-        const std::string docs = default_docs_root();
-        if (ase::viewer::fs::is_directory(docs)) {
-            win->load_directory(docs);
+
+        // Resolution order for the startup directory:
+        //   1. ViewerSettings::default_root (user-configured via preferences).
+        //   2. <ase>/docs/ase-docs/tech (only valid for in-tree dev builds).
+        //   3. Empty — user picks a directory via preferences or drops a
+        //      file onto the window.
+        const auto& s = win->settings();
+        std::string docs;
+        if (!s.default_root.empty() && ase::viewer::fs::is_directory(s.default_root)) {
+            docs = s.default_root;
+        } else {
+            const std::string dev_fallback = default_docs_root();
+            if (ase::viewer::fs::is_directory(dev_fallback)) docs = dev_fallback;
         }
+        if (!docs.empty()) win->load_directory(docs);
         win->present();
         *current_window = std::move(win);
     });
