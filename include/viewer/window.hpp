@@ -31,6 +31,8 @@
 #include <ase/adp/gtk/application.hpp>
 
 #include <gtkmm/box.h>
+#include <gtkmm/button.h>
+#include <gtkmm/overlay.h>
 #include <gtkmm/paned.h>
 
 #include <cstdint>
@@ -80,6 +82,13 @@ private:
      */
     bool handle_type_ahead(unsigned keyval, unsigned state);
 
+    // ── Sidebar (drawer) — web-parity pinnable drawer ────────────────
+    void apply_sidebar_state();
+    void handle_pin_toggle();
+    void handle_close_drawer();
+    void handle_open_drawer();
+    void handle_paned_position_changed();
+
     // Internal helpers.
     void open_file(const std::string& path);
     /** Install a GtkDropTarget on the toplevel window so dragged files /
@@ -109,6 +118,20 @@ private:
 
     Gtk::Paned m_paned{Gtk::Orientation::HORIZONTAL};
     Gtk::Box   m_main_box{Gtk::Orientation::VERTICAL, 0};
+
+    // ── Sidebar (drawer) widgets ─────────────────────────────────────
+    Gtk::Overlay m_overlay;
+    Gtk::Box     m_content_box{Gtk::Orientation::HORIZONTAL, 0};
+    Gtk::Box     m_rail{Gtk::Orientation::VERTICAL, 0};
+    Gtk::Button  m_rail_open_button;
+    Gtk::Box     m_sidebar_container{Gtk::Orientation::VERTICAL, 0};
+    Gtk::Box     m_sidebar_header{Gtk::Orientation::HORIZONTAL, 0};
+    Gtk::Button  m_pin_button;
+    Gtk::Button  m_close_button;
+    Gtk::Box     m_backdrop{Gtk::Orientation::VERTICAL, 0};
+    Gtk::Box     m_overlay_sidebar_holder{Gtk::Orientation::VERTICAL, 0};
+
+    bool m_applying_sidebar_state = false;
 };
 
 }  // namespace ase::viewer

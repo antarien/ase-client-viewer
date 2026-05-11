@@ -304,6 +304,7 @@ add_executable(ase-viewer
     src/render/vwr_rndr_synt.cpp
     src/render/vwr_rndr_math.cpp
     src/render/vwr_rndr_mmrd.cpp
+    src/render/vwr_rndr_pntm.cpp
     src/render/vwr_rndr_amdl.cpp
     src/render/dsl/vwr_dsl_dispatch.cpp
     src/render/dsl/vwr_dsl_hero.cpp

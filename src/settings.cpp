@@ -48,6 +48,9 @@ void parse_line(const std::string& line, ViewerSettings& s) {
     else if (key == "line_numbers")   s.line_numbers   = val == "true";
     else if (key == "math_rendering") s.math_rendering = val == "true";
     else if (key == "mermaid_render") s.mermaid_render = val == "true";
+    else if (key == "sidebar_open")   s.sidebar_open   = val == "true";
+    else if (key == "sidebar_pinned") s.sidebar_pinned = val == "true";
+    else if (key == "sidebar_width")  s.sidebar_width  = std::atoi(val.c_str());
 }
 
 std::string make_json(const ViewerSettings& s) {

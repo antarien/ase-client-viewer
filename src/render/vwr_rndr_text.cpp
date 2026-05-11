@@ -12,6 +12,12 @@ namespace ase::viewer::render {
 
 namespace {
 
+int clamp_body_px(int px) {
+    if (px < 8)  return 8;
+    if (px > 24) return 24;
+    return px;
+}
+
 int heading_size_for_level(uint8_t level) {
     if (level == 1) return FONT_PX_H1;
     if (level == 2) return FONT_PX_H2;
@@ -21,6 +27,12 @@ int heading_size_for_level(uint8_t level) {
 
 void apply_absolute_pixel_size(Pango::FontDescription& fd, int px) {
     fd.set_absolute_size(static_cast<double>(px) * Pango::SCALE);
+}
+
+constexpr double LINE_SPACING_FACTOR = 1.4;
+
+void apply_line_spacing(const Glib::RefPtr<Pango::Layout>& layout) {
+    layout->set_line_spacing(LINE_SPACING_FACTOR);
 }
 
 }  // namespace
@@ -33,6 +45,7 @@ int measure_text_height(const Glib::RefPtr<Pango::Layout>& layout,
     layout->set_font_description(fd);
     layout->set_width(width_px * Pango::SCALE);
     layout->set_wrap(Pango::WrapMode::WORD_CHAR);
+    apply_line_spacing(layout);
     layout->set_text(text);
 
     int w = 0, h = 0;
@@ -49,6 +62,7 @@ Glib::RefPtr<Pango::Layout> create_body_layout(
     layout->set_font_description(fd);
     layout->set_width(width_px * Pango::SCALE);
     layout->set_wrap(Pango::WrapMode::WORD_CHAR);
+    apply_line_spacing(layout);
     return layout;
 }
 
@@ -61,6 +75,7 @@ Glib::RefPtr<Pango::Layout> create_code_layout(
     layout->set_font_description(fd);
     layout->set_width(width_px * Pango::SCALE);
     layout->set_wrap(Pango::WrapMode::WORD_CHAR);
+    apply_line_spacing(layout);
     return layout;
 }
 
@@ -74,6 +89,7 @@ Glib::RefPtr<Pango::Layout> create_heading_layout(
     layout->set_font_description(fd);
     layout->set_width(width_px * Pango::SCALE);
     layout->set_wrap(Pango::WrapMode::WORD_CHAR);
+    apply_line_spacing(layout);
     return layout;
 }
 
@@ -82,6 +98,17 @@ void draw_layout(const Cairo::RefPtr<Cairo::Context>& cr,
                  double x, double y) {
     cr->move_to(x, y);
     layout->show_in_cairo_context(cr);
+}
+
+void set_body_font_px(int px) {
+    const int body = clamp_body_px(px);
+    FONT_PX_BODY  = body;
+    FONT_PX_H4    = body;
+    FONT_PX_H3    = (body * 7  + 3) / 6;   // ×1.167
+    FONT_PX_H2    = (body * 4  + 1) / 3;   // ×1.333
+    FONT_PX_H1    = (body * 3  + 1) / 2;   // ×1.5
+    FONT_PX_CODE  = (body * 5  + 3) / 6;   // ×0.833
+    FONT_PX_SMALL = (body * 3  + 2) / 4;   // ×0.75
 }
 
 }  // namespace ase::viewer::render

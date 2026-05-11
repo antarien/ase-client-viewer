@@ -78,6 +78,12 @@ public:
     /** Queue a redraw - call after mutating external state. */
     void queue_draw();
 
+    /** Apply a new body font size (8..24 px). Rescales every heading /
+     *  code / small class through render::set_body_font_px and queues a
+     *  redraw. Called once on startup with settings.font_size and again
+     *  every time the user edits the Preferences spin button. */
+    void apply_font_size(int px);
+
     /**
      * Walk the current AST and produce a plain text representation with
      * bracketed directive markers so unresolved :::name{attrs} leak

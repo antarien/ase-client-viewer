@@ -17,6 +17,8 @@
 
 #include <viewer/canvas.hpp>
 
+#include "render/vwr_rndr_text.hpp"
+
 #include <ase/markdown/ast.hpp>
 #include <ase/markdown/types.hpp>
 
@@ -244,6 +246,11 @@ void Canvas::queue_draw() {
     m_drawing_area.queue_draw();
 }
 
+void Canvas::apply_font_size(int px) {
+    render::set_body_font_px(px);
+    queue_draw();
+}
+
 std::string Canvas::dump_text() const {
     if (!m_has_doc || m_doc.root == nullptr) return std::string{};
 
@@ -273,7 +280,7 @@ void Canvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int width, int hei
         Pango::FontDescription fd;
         fd.set_family("Fira Code");
         fd.set_weight(Pango::Weight::BOLD);
-        fd.set_absolute_size(14 * Pango::SCALE);
+        fd.set_absolute_size(render::FONT_PX_H3 * Pango::SCALE);
         layout->set_font_description(fd);
         layout->set_text("ASE TECH & DESIGN Viewer");
         int lw = 0, lh = 0;
@@ -285,7 +292,7 @@ void Canvas::on_draw(const Cairo::RefPtr<Cairo::Context>& cr, int width, int hei
         auto sub = Pango::Layout::create(cr);
         Pango::FontDescription sfd;
         sfd.set_family("Fira Code");
-        sfd.set_absolute_size(11 * Pango::SCALE);
+        sfd.set_absolute_size(render::FONT_PX_BODY * Pango::SCALE);
         sub->set_font_description(sfd);
         sub->set_text("Select a document from the sidebar");
         int sw = 0, sh = 0;

@@ -192,7 +192,15 @@ std::string generate_css() {
         ".ase-cfg-cell:hover { background-color: " + surface_2_h + "; }\n"
         ".ase-cfg-cell-label { color: " + text_muted + "; font-size: " + fs_xs + ";"
             " text-transform: uppercase; }\n"
-        ".ase-cfg-cell-value { color: " + text_light + "; font-size: " + fs_md + "; }\n";
+        ".ase-cfg-cell-value { color: " + text_light + "; font-size: " + fs_md + "; }\n"
+
+        // ── Sidebar drawer (rail / backdrop / floating panel) ──────────
+        ".ase-rail { background-color: " + surface_1 + ";"
+            " border-right: 1px solid " + border_sec + "; }\n"
+        ".ase-drawer-backdrop { background-color: rgba(0,0,0,0.40); }\n"
+        ".ase-drawer-floating { background-color: " + surface_0 + ";"
+            " border-right: 1px solid " + border_sec + ";"
+            " box-shadow: 4px 0 16px rgba(0,0,0,0.50); }\n";
 }
 
 }  // namespace ase::viewer::theme

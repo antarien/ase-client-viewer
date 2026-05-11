@@ -42,6 +42,7 @@
 #include "vwr_rndr_text.hpp"
 #include "vwr_rndr_inline.hpp"
 #include "vwr_rndr_mmrd.hpp"
+#include "vwr_rndr_pntm.hpp"
 #include "vwr_rndr_math.hpp"
 #include "vwr_rndr_amdl.hpp"
 #include "vwr_rndr_image_path.hpp"
@@ -122,17 +123,19 @@ constexpr double CALLOUT_PAD    = 12.0;
 //   h2 mt-7 mb-3 (28/12)
 //   h3 mt-6 mb-2 (24/8)
 //   h4 mt-5 mb-2 (20/8)
-constexpr double H1_MT = 32.0, H1_MB = 16.0, H1_PB = 6.0;
-constexpr double H2_MT = 28.0, H2_MB = 12.0;
-constexpr double H3_MT = 24.0, H3_MB = 8.0;
-constexpr double H4_MT = 20.0, H4_MB = 8.0;
+// Heading margins derive from FONT_PX_BODY so they scale with the
+// user's font-size setting AND land at user-perceived "comfortable"
+// rather than the web's airy 32/28/24/20 px column (the previous
+// constexpr values assumed body=16 like the web does).
+constexpr double H1_PB_RATIO = 0.40;
 
 struct HeadingSpacing { double mt, mb; };
 inline HeadingSpacing heading_spacing(uint8_t level) {
-    if (level == 1) return {H1_MT, H1_MB};
-    if (level == 2) return {H2_MT, H2_MB};
-    if (level == 3) return {H3_MT, H3_MB};
-    return {H4_MT, H4_MB};
+    const double b = static_cast<double>(FONT_PX_BODY);
+    if (level == 1) return {b * 1.50, b * 0.75};
+    if (level == 2) return {b * 1.25, b * 0.50};
+    if (level == 3) return {b * 1.00, b * 0.40};
+    return                {b * 0.75, b * 0.40};
 }
 
 // SSOT-routed Pango markup fragments built once at static-init from
@@ -421,8 +424,8 @@ void render_heading(RenderContext& ctx, const ase::markdown::Node* node, int con
     layout->get_pixel_size(w, h);
     ctx.y += h;
     if (node->heading_level == 1) {
-        // Web h1: pb-1.5 (6) + border-bottom 1 px BORDER_A30.
-        ctx.y += H1_PB;
+        // Web h1: pb-1.5 + border-bottom 1 px BORDER_A30 — scaled to body.
+        ctx.y += static_cast<double>(FONT_PX_BODY) * H1_PB_RATIO;
         ctx.cr->set_source_rgba(rgb_r(::ase::colors::BORDER_A30),
                                 rgb_g(::ase::colors::BORDER_A30),
                                 rgb_b(::ase::colors::BORDER_A30),
@@ -435,6 +438,31 @@ void render_heading(RenderContext& ctx, const ase::markdown::Node* node, int con
     ctx.y += sp.mb;
 }
 
+// Match "^[0-9]+[a-z]?\.\s+" on the first inline text child — pseudo-
+// list paragraphs like "0a. **Item...**" that cmark does NOT parse as
+// ordered-list items get a hanging indent so wrapped lines line up
+// under the body text instead of the marker.
+size_t detect_pseudo_list_prefix(const ase::markdown::Node* paragraph) {
+    using namespace ase::markdown;
+    if (paragraph == nullptr) return 0;
+    const Node* first = paragraph->first_child;
+    if (first == nullptr || first->type != NODE_TEXT) return 0;
+    if (first->text == nullptr || first->text_len == 0) return 0;
+
+    const char* p   = first->text;
+    const size_t n  = first->text_len;
+    size_t i        = 0;
+
+    while (i < n && p[i] >= '0' && p[i] <= '9') ++i;
+    if (i == 0) return 0;
+    if (i < n && p[i] >= 'a' && p[i] <= 'z') ++i;
+    if (i >= n || p[i] != '.') return 0;
+    ++i;
+    if (i >= n || (p[i] != ' ' && p[i] != '\t')) return 0;
+    while (i < n && (p[i] == ' ' || p[i] == '\t')) ++i;
+    return i;
+}
+
 void render_paragraph(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
     if (paragraph_has_inline_math(node)) {
         render_paragraph_inline_math(ctx, node, content_width);
@@ -444,6 +472,23 @@ void render_paragraph(RenderContext& ctx, const ase::markdown::Node* node, int c
     std::string markup;
     build_inline_children(markup, node);
     set_layout_markup(layout, markup);
+
+    if (const size_t prefix_len = detect_pseudo_list_prefix(node); prefix_len > 0) {
+        auto probe = Pango::Layout::create(ctx.cr);
+        Pango::FontDescription fd;
+        fd.set_family("Fira Code");
+        fd.set_absolute_size(FONT_PX_BODY * Pango::SCALE);
+        probe->set_font_description(fd);
+        probe->set_text(std::string(node->first_child->text, prefix_len));
+        int pw = 0, ph = 0;
+        probe->get_pixel_size(pw, ph);
+        const double floor_px = static_cast<double>(FONT_PX_BODY) * 2.5;
+        const int indent_px = static_cast<int>(pw) > static_cast<int>(floor_px)
+                              ? pw
+                              : static_cast<int>(floor_px);
+        layout->set_indent(-indent_px * Pango::SCALE);
+    }
+
     ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
     draw_layout(ctx.cr, layout, ctx.margin_left, ctx.y);
     int w = 0, h = 0;
@@ -589,16 +634,45 @@ void render_blockquote(RenderContext& ctx, const ase::markdown::Node* node, int 
 void render_thematic_break(RenderContext& ctx);
 void render_table(RenderContext& ctx, const ase::markdown::Node* node, int content_width);
 void render_mermaid_block(RenderContext& ctx, const ase::markdown::Node* node, int content_width);
+void render_plantuml_block(RenderContext& ctx, const ase::markdown::Node* node, int content_width);
 void render_math_block(RenderContext& ctx, const ase::markdown::Node* node, int content_width);
 void render_image(RenderContext& ctx, const ase::markdown::Node* node, int content_width);
 
 void render_list(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
+    ctx.y += 4;
+
+    // Pass 1: count items so we know the largest ordinal we will print.
+    int item_count = 0;
+    for (const ase::markdown::Node* x = node->first_child; x != nullptr; x = x->next_sibling) {
+        ++item_count;
+    }
+    const int start_index = static_cast<int>(node->list_start);
+    const int last_index  = start_index + (item_count > 0 ? item_count - 1 : 0);
+
+    auto probe = Pango::Layout::create(ctx.cr);
+    Pango::FontDescription pfd;
+    pfd.set_family("Fira Code");
+    pfd.set_absolute_size(FONT_PX_BODY * Pango::SCALE);
+    probe->set_font_description(pfd);
+    if (node->list_ordered != 0) {
+        probe->set_text(std::to_string(last_index) + ".");
+    } else {
+        probe->set_text("→");
+    }
+    int pw = 0, ph = 0;
+    probe->get_pixel_size(pw, ph);
+    const double bullet_gap = 6.0;
+    // Shared floor (with render_paragraph pseudo-list branch) so a
+    // singleton list, a 13-item list and "0a." paragraphs all align.
+    const double bullet_indent_floor = static_cast<double>(FONT_PX_BODY) * 2.5;
+    const double dynamic = static_cast<double>(pw) + bullet_gap;
+    const double effective_indent = dynamic > bullet_indent_floor ? dynamic : bullet_indent_floor;
+
     const ase::markdown::Node* item = node->first_child;
-    int index = static_cast<int>(node->list_start);
+    int index = start_index;
     while (item != nullptr) {
-        auto layout = create_body_layout(ctx.cr, content_width - static_cast<int>(LIST_INDENT));
+        auto layout = create_body_layout(ctx.cr, content_width - static_cast<int>(effective_indent));
         std::string markup;
-        // Walk item children — first paragraph contains the inline content.
         const ase::markdown::Node* ic = item->first_child;
         while (ic != nullptr) {
             if (ic->type == ase::markdown::NODE_PARAGRAPH) build_inline_children(markup, ic);
@@ -610,7 +684,7 @@ void render_list(RenderContext& ctx, const ase::markdown::Node* node, int conten
         auto bullet_layout = Pango::Layout::create(ctx.cr);
         Pango::FontDescription fd;
         fd.set_family("Fira Code");
-        fd.set_size(11 * Pango::SCALE);
+        fd.set_absolute_size(FONT_PX_BODY * Pango::SCALE);
         bullet_layout->set_font_description(fd);
         if (node->list_ordered != 0) {
             bullet_layout->set_text(std::to_string(index++) + ".");
@@ -621,10 +695,12 @@ void render_list(RenderContext& ctx, const ase::markdown::Node* node, int conten
         draw_layout(ctx.cr, bullet_layout, ctx.margin_left, ctx.y);
 
         ctx.cr->set_source_rgb(TEXT_R, TEXT_G, TEXT_B);
-        draw_layout(ctx.cr, layout, ctx.margin_left + LIST_INDENT, ctx.y);
+        draw_layout(ctx.cr, layout, ctx.margin_left + effective_indent, ctx.y);
         int w = 0, h = 0;
         layout->get_pixel_size(w, h);
-        ctx.y += h + 2;
+        // Inter-item gap = 2 × FONT_PX_BODY → ~doppelte sichtbare
+        // Zeilen-Lücke aus line_spacing 1.4 innerhalb gewrappter Items.
+        ctx.y += h + FONT_PX_BODY * 2;
         item = item->next_sibling;
     }
     ctx.y += PARA_SPACING;
@@ -755,6 +831,17 @@ void render_mermaid_block(RenderContext& ctx, const ase::markdown::Node* node, i
     }
 }
 
+void render_plantuml_block(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
+    ctx.y += 4;
+    if (node->text != nullptr && node->text_len > 0) {
+        double h = render_plantuml(ctx.cr, node->text, node->text_len,
+                                   ctx.margin_left, ctx.y, content_width);
+        ctx.y += h + PARA_SPACING;
+    } else {
+        ctx.y += PARA_SPACING;
+    }
+}
+
 void render_math_block(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
     ctx.y += 4;
     if (node->text != nullptr && node->text_len > 0) {
@@ -816,6 +903,9 @@ void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
     }
     if (node->type == NODE_MERMAID_BLOCK) {
         render_mermaid_block(ctx, node, content_width); return;
+    }
+    if (node->type == NODE_PLANTUML_BLOCK) {
+        render_plantuml_block(ctx, node, content_width); return;
     }
     if (node->type == NODE_MATH_DISPLAY) {
         render_math_block(ctx, node, content_width); return;

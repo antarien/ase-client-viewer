@@ -75,6 +75,13 @@ void ViewerWindow::build_ui() {
     m_header.set_mode(m_settings.default_mode);
     m_canvas.set_mode(m_settings.default_mode);
 
+    // Push the persisted font size into the render pipeline before the
+    // first paint. Without this the FONT_PX_* defaults (Tailwind body=12)
+    // would silently override whatever the user previously set in
+    // Preferences — the bug that made the font-size spin button look
+    // dead until 2026-05-11.
+    m_canvas.apply_font_size(m_settings.font_size);
+
     // ── Header bar ──
     m_window.set_titlebar(m_header);
 
@@ -97,26 +104,112 @@ void ViewerWindow::build_ui() {
         handle_open_settings();
     });
 
-    // ── Tree view (left) ──
-    m_paned.set_position(280);
-    m_paned.set_shrink_start_child(false);
-    m_paned.set_vexpand(true);
-    m_paned.set_start_child(m_tree_view.widget());
+    // ── Sidebar header (pin + close-X) ───────────────────────────────
+    m_pin_button.set_icon_name("view-pin-symbolic");
+    m_pin_button.set_has_frame(false);
+    m_pin_button.set_tooltip_text("Pin / unpin sidebar");
+    m_pin_button.signal_clicked().connect(
+        sigc::mem_fun(*this, &ViewerWindow::handle_pin_toggle));
+
+    m_close_button.set_icon_name("window-close-symbolic");
+    m_close_button.set_has_frame(false);
+    m_close_button.set_tooltip_text("Close sidebar");
+    m_close_button.signal_clicked().connect(
+        sigc::mem_fun(*this, &ViewerWindow::handle_close_drawer));
+
+    auto* spacer = Gtk::make_managed<Gtk::Box>(Gtk::Orientation::HORIZONTAL, 0);
+    spacer->set_hexpand(true);
+    m_sidebar_header.append(*spacer);
+    m_sidebar_header.append(m_pin_button);
+    m_sidebar_header.append(m_close_button);
+
+    m_sidebar_container.set_vexpand(true);
+    m_sidebar_container.append(m_sidebar_header);
+    m_sidebar_container.append(m_tree_view.widget());
+    m_tree_view.widget().set_vexpand(true);
 
     m_tree_view.on_file_activated([this](const std::string& path) {
         handle_file_activated(path);
     });
 
-    // ── Canvas (right) ──
+    // ── Paned (sidebar slot + canvas) ────────────────────────────────
+    m_paned.set_shrink_start_child(false);
+    m_paned.set_vexpand(true);
+    m_paned.set_start_child(m_sidebar_container);
     m_paned.set_end_child(m_canvas.widget());
+    m_paned.set_position(m_settings.sidebar_width > 0 ? m_settings.sidebar_width : 280);
 
-    // ── Main vertical layout: paned + status bar ──
-    // Layout widgets (Gtk::Box, Gtk::Paned) are NOT in the ase::adp::gtk
-    // adapter, so we drive them through raw gtkmm calls on the underlying
-    // Gtk::ApplicationWindow pointer.
-    m_main_box.append(m_paned);
+    g_signal_connect(m_paned.gobj(), "notify::position",
+        G_CALLBACK(+[](GObject*, GParamSpec*, gpointer self) {
+            static_cast<ViewerWindow*>(self)->handle_paned_position_changed();
+        }), this);
+
+    // ── Rail strip (collapsed sidebar) ───────────────────────────────
+    m_rail.set_size_request(40, -1);
+    m_rail.set_vexpand(true);
+    m_rail.add_css_class("ase-rail");
+
+    m_rail_open_button.set_icon_name("folder-symbolic");
+    m_rail_open_button.set_has_frame(false);
+    m_rail_open_button.set_tooltip_text("Open sidebar");
+    m_rail_open_button.set_margin_top(8);
+    m_rail_open_button.signal_clicked().connect(
+        sigc::mem_fun(*this, &ViewerWindow::handle_open_drawer));
+    m_rail.append(m_rail_open_button);
+
+    GtkGesture* rail_drag = gtk_gesture_drag_new();
+    g_signal_connect(rail_drag, "drag-update",
+        G_CALLBACK(+[](GtkGestureDrag*, double offset_x, double, gpointer self) {
+            if (offset_x < 8.0) return;
+            auto* w = static_cast<ViewerWindow*>(self);
+            int width = static_cast<int>(40.0 + offset_x);
+            if (width < 180) width = 180;
+            if (width > 600) width = 600;
+            w->m_settings.sidebar_width = width;
+            w->m_settings.sidebar_open  = true;
+            w->apply_sidebar_state();
+        }), this);
+    gtk_widget_add_controller(GTK_WIDGET(m_rail.gobj()), GTK_EVENT_CONTROLLER(rail_drag));
+
+    // ── Content box (rail + paned), wrapped in overlay ───────────────
+    m_content_box.set_hexpand(true);
+    m_content_box.set_vexpand(true);
+    m_content_box.append(m_rail);
+    m_content_box.append(m_paned);
+    m_paned.set_hexpand(true);
+
+    m_overlay.set_child(m_content_box);
+
+    // Backdrop overlay child
+    m_backdrop.set_hexpand(true);
+    m_backdrop.set_vexpand(true);
+    m_backdrop.add_css_class("ase-drawer-backdrop");
+    {
+        GtkGesture* tap = gtk_gesture_click_new();
+        g_signal_connect(tap, "pressed",
+            G_CALLBACK(+[](GtkGestureClick*, int, double, double, gpointer self) {
+                static_cast<ViewerWindow*>(self)->handle_close_drawer();
+            }), this);
+        gtk_widget_add_controller(GTK_WIDGET(m_backdrop.gobj()),
+                                  GTK_EVENT_CONTROLLER(tap));
+    }
+    m_overlay.add_overlay(m_backdrop);
+
+    m_overlay_sidebar_holder.set_halign(Gtk::Align::START);
+    m_overlay_sidebar_holder.set_valign(Gtk::Align::FILL);
+    m_overlay_sidebar_holder.set_vexpand(true);
+    m_overlay_sidebar_holder.add_css_class("ase-drawer-floating");
+    m_overlay.add_overlay(m_overlay_sidebar_holder);
+
+    m_backdrop.set_visible(false);
+    m_overlay_sidebar_holder.set_visible(false);
+
+    // ── Main vertical layout: overlay + status bar ───────────────────
+    m_main_box.append(m_overlay);
     m_main_box.append(m_status_bar.widget());
     m_window.native()->set_child(m_main_box);
+
+    apply_sidebar_state();
 
     // ── Keyboard shortcuts ──
     m_shortcuts.on_focus_search([this]() { handle_focus_search(); });
@@ -203,6 +296,86 @@ void ViewerWindow::present() {
 
 void ViewerWindow::handle_file_activated(const std::string& path) {
     open_file(path);
+    if (m_settings.sidebar_open && !m_settings.sidebar_pinned) {
+        handle_close_drawer();
+    }
+}
+
+void ViewerWindow::apply_sidebar_state() {
+    m_applying_sidebar_state = true;
+
+    const bool open   = m_settings.sidebar_open;
+    const bool pinned = m_settings.sidebar_pinned;
+    const int  width  = m_settings.sidebar_width > 0 ? m_settings.sidebar_width : 280;
+
+    auto* sb_parent = m_sidebar_container.get_parent();
+    if (sb_parent == &m_overlay_sidebar_holder) {
+        m_overlay_sidebar_holder.remove(m_sidebar_container);
+    } else if (sb_parent != nullptr) {
+        gtk_paned_set_start_child(GTK_PANED(m_paned.gobj()), nullptr);
+    }
+
+    m_close_button.set_visible(open && !pinned);
+
+    if (!open) {
+        m_rail.set_visible(true);
+        m_paned.set_position(0);
+        gtk_paned_set_start_child(GTK_PANED(m_paned.gobj()), nullptr);
+        m_backdrop.set_visible(false);
+        m_overlay_sidebar_holder.set_visible(false);
+    } else if (pinned) {
+        m_rail.set_visible(false);
+        m_paned.set_start_child(m_sidebar_container);
+        m_paned.set_position(width);
+        m_backdrop.set_visible(false);
+        m_overlay_sidebar_holder.set_visible(false);
+    } else {
+        m_rail.set_visible(false);
+        m_paned.set_position(0);
+        gtk_paned_set_start_child(GTK_PANED(m_paned.gobj()), nullptr);
+        m_overlay_sidebar_holder.append(m_sidebar_container);
+        m_overlay_sidebar_holder.set_size_request(width, -1);
+        m_overlay_sidebar_holder.set_margin_start(0);
+        m_backdrop.set_visible(true);
+        m_overlay_sidebar_holder.set_visible(true);
+    }
+
+    save_settings(m_config_dir, m_settings);
+    m_applying_sidebar_state = false;
+}
+
+void ViewerWindow::handle_pin_toggle() {
+    if (!m_settings.sidebar_pinned) {
+        m_settings.sidebar_pinned = true;
+        m_settings.sidebar_open   = true;
+    } else {
+        m_settings.sidebar_pinned = false;
+    }
+    apply_sidebar_state();
+}
+
+void ViewerWindow::handle_close_drawer() {
+    m_settings.sidebar_open = false;
+    apply_sidebar_state();
+}
+
+void ViewerWindow::handle_open_drawer() {
+    m_settings.sidebar_open = true;
+    apply_sidebar_state();
+}
+
+void ViewerWindow::handle_paned_position_changed() {
+    if (m_applying_sidebar_state) return;
+    if (!m_settings.sidebar_open) return;
+    const int pos = m_paned.get_position();
+    if (pos > 0 && pos < 60) {
+        handle_close_drawer();
+        return;
+    }
+    if (pos >= 60 && m_settings.sidebar_pinned) {
+        m_settings.sidebar_width = pos;
+        save_settings(m_config_dir, m_settings);
+    }
 }
 
 void ViewerWindow::handle_mode_changed(uint8_t mode) {
@@ -262,7 +435,7 @@ void ViewerWindow::handle_open_settings() {
         m_settings,
         m_config_dir,
         sigc::slot<void()>([this, root_before]() {
-            m_canvas.queue_draw();
+            m_canvas.apply_font_size(m_settings.font_size);
             const std::string& root_after = m_settings.default_root;
             if (root_after != root_before
                 && !root_after.empty()
@@ -280,14 +453,16 @@ void ViewerWindow::handle_refresh() {
 }
 
 void ViewerWindow::handle_escape() {
-    // Two-tier Escape: first press closes the search bar (if open);
-    // second press closes the window. Mirrors the ase-client-explorer
-    // convention. Clearing the filter on close prevents the tree from
-    // staying in a filtered state after the bar is dismissed.
+    // Three-tier Escape: search bar first, then the unpinned drawer,
+    // finally the window itself.
     if (m_header.search_visible()) {
         m_header.toggle_search(false);
         m_tree_view.set_search("");
         m_tree_view.grab_focus();
+        return;
+    }
+    if (m_settings.sidebar_open && !m_settings.sidebar_pinned) {
+        handle_close_drawer();
         return;
     }
     gtk_window_close(GTK_WINDOW(m_window.native()->gobj()));

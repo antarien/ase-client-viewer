@@ -42,13 +42,24 @@ constexpr const char* FONT_BODY  = "Fira Code";
 // Stored as integer pixels; rendering uses Pango::FontDescription::set_absolute_size
 // with `value * Pango::SCALE` so 1 unit == 1 device pixel regardless of DPI.
 
-constexpr int FONT_PX_H1    = 18;
-constexpr int FONT_PX_H2    = 16;
-constexpr int FONT_PX_H3    = 14;
-constexpr int FONT_PX_H4    = 12;
-constexpr int FONT_PX_BODY  = 12;
-constexpr int FONT_PX_CODE  = 10;
-constexpr int FONT_PX_SMALL = 9;
+// Globals (not constexpr) so the runtime can rescale them when the user
+// edits the font size in Preferences. set_body_font_px() is the SSOT
+// mutator: it derives every heading / code / small size from the body
+// size via Tailwind ratios (H1=1.5×, H2=1.333×, H3=1.167×, H4=1.0×,
+// CODE=0.833×, SMALL=0.75×).
+
+inline int FONT_PX_H1    = 18;
+inline int FONT_PX_H2    = 16;
+inline int FONT_PX_H3    = 14;
+inline int FONT_PX_H4    = 12;
+inline int FONT_PX_BODY  = 12;
+inline int FONT_PX_CODE  = 10;
+inline int FONT_PX_SMALL = 9;
+
+/** Set the body pixel size and recompute every dependent class
+ *  (H1..H4, CODE, SMALL) using the Tailwind ratio table. Caller is
+ *  responsible for triggering a redraw of any already-painted widgets. */
+void set_body_font_px(int px);
 
 int measure_text_height(const Glib::RefPtr<Pango::Layout>& layout,
                         const std::string& text, int width_px, int font_px);

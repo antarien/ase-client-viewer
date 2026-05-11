@@ -32,6 +32,16 @@ struct ViewerSettings {
     bool line_numbers   = true;
     bool math_rendering = true;
     bool mermaid_render = true;
+
+    // Sidebar (drawer) — mirrors DocsLayout xl/lg "pinnable drawer" mode.
+    // open=true + pinned=true  → inline alongside canvas, splitter resizes.
+    // open=true + pinned=false → floating overlay with backdrop; ESC /
+    //                            backdrop / file-click collapses.
+    // open=false               → 40px rail strip on the left edge; click
+    //                            or drag-right reopens.
+    bool sidebar_open   = true;
+    bool sidebar_pinned = true;
+    int  sidebar_width  = 280;
 };
 
 /** Load settings from <config_dir>/settings.json. Missing file → defaults. */

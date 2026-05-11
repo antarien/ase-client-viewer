@@ -1,0 +1,36 @@
+@startuml ase_layer_architecture
+title ASE Layer Architecture (L0..L5)
+
+skinparam backgroundColor #0A0A0A
+skinparam defaultTextAlignment center
+skinparam roundCorner 8
+skinparam shadowing false
+skinparam ArrowColor #5A9CB8
+skinparam ArrowThickness 1.4
+
+skinparam rectangle {
+    BackgroundColor #1A1A1A
+    BorderColor #5A9CB8
+    FontColor #8A9A9A
+    FontSize 12
+}
+
+rectangle "L5 — Servers & Clients\nase-server-game, ase-client-web" as L5
+rectangle "L4 — Plugins\nase-pl-sky, ase-pl-erosion" as L4
+rectangle "L3 — Modules\nase-terrain, ase-network, ase-player" as L3
+rectangle "L2 — Kernel\nGame Loop, Scheduler, ModuleLoader" as L2
+rectangle "L1 — Core\nase-ecs, ase-log, ase-neo4j" as L1
+rectangle "L0 — Foundation\nase-math, ase-types, ase-utils" as L0
+
+L5 --> L4
+L4 --> L3
+L3 --> L2
+L2 --> L1
+L1 --> L0
+
+note right of L0
+  No ECS dependency.
+  Pure primitives only.
+end note
+
+@enduml
