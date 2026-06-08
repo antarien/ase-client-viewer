@@ -25,10 +25,11 @@
 #include <ase/adp/gtk/application.hpp>
 #include <ase/adp/gtk/style.hpp>
 
+#include <ase/containers/vector.hpp>
+
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace {
 
@@ -94,7 +95,7 @@ int main(int argc, char* argv[]) {
         *current_window = std::move(win);
     });
 
-    app.on_open([&app, current_window](const std::vector<std::string>& paths) {
+    app.on_open([&app, current_window](const ase::containers::Vector<std::string>& paths) {
         auto win = make_window(app);
         if (!paths.empty()) {
             const std::string& first = paths.front();

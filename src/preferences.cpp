@@ -27,10 +27,11 @@
 #include <adwaita.h>
 #include <gtk/gtk.h>
 
+#include <ase/containers/vector.hpp>
+
 #include <initializer_list>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace ase::viewer {
 
@@ -111,8 +112,8 @@ GtkWidget* make_toggle(bool initial) {
     return sw;
 }
 
-GtkWidget* make_dropdown(const std::vector<const char*>& choices, unsigned selected) {
-    std::vector<const char*> with_null(choices);
+GtkWidget* make_dropdown(const ase::containers::Vector<const char*>& choices, unsigned selected) {
+    ase::containers::Vector<const char*> with_null(choices);
     with_null.push_back(nullptr);
     GtkWidget* dd = gtk_drop_down_new_from_strings(with_null.data());
     gtk_drop_down_set_selected(GTK_DROP_DOWN(dd), selected);

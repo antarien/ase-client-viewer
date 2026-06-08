@@ -12,7 +12,8 @@
  * @layer       5
  */
 
-#include <set>
+#include <ase/containers/ordered.hpp>
+
 #include <string>
 
 namespace ase::viewer {
@@ -32,10 +33,10 @@ public:
     bool is_read(const std::string& path) const;
 
     /** Direct access to the backing set for bulk iteration. */
-    const std::set<std::string>& entries() const noexcept { return m_paths; }
+    const ase::containers::Set<std::string>& entries() const noexcept { return m_paths; }
 
 private:
-    std::set<std::string> m_paths;
+    ase::containers::Set<std::string> m_paths;
 };
 
 }  // namespace ase::viewer

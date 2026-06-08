@@ -22,6 +22,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
+#include <ase/containers/vector.hpp>
+
 #include <algorithm>
 #include <cctype>
 
@@ -35,8 +37,8 @@ struct DirEntry {
     bool        is_dir;
 };
 
-std::vector<DirEntry> list_markdown_dir(const std::string& dir_path) {
-    std::vector<DirEntry> entries;
+ase::containers::Vector<DirEntry> list_markdown_dir(const std::string& dir_path) {
+    ase::containers::Vector<DirEntry> entries;
     DIR* d = ::opendir(dir_path.c_str());
     if (d == nullptr) return entries;
 
@@ -115,7 +117,7 @@ void TreeView::load(const std::string& root) {
 void TreeView::refresh() {
     if (m_root_path.empty()) return;
 
-    std::vector<std::string> expanded_paths;
+    ase::containers::Vector<std::string> expanded_paths;
     m_filter_model->foreach_iter(
         [this, &expanded_paths](const Gtk::TreeModel::const_iterator& iter) -> bool {
             auto path = m_filter_model->get_path(iter);

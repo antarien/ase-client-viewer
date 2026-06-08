@@ -188,6 +188,16 @@ if(NOT TARGET ase::alloc)
     add_subdirectory(${ASE_FOUNDATION_PATH}/ase-alloc ${CMAKE_BINARY_DIR}/_deps/ase-alloc-build)
 endif()
 
+# ── ase::containers (L0 - foundation) ────────────────────────────────
+# Foundation SSOT container aliases (Vector/Set/…). The viewer consumes
+# them in read_tracker.hpp and the POSIX helpers so client code never
+# names std:: containers directly (ECS validator requirement).
+
+if(NOT TARGET ase::containers)
+    set(ASE_FOUNDATION_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../foundation)
+    add_subdirectory(${ASE_FOUNDATION_PATH}/ase-containers ${CMAKE_BINARY_DIR}/_deps/ase-containers-build)
+endif()
+
 # ── Link ase-markdown (L1) ───────────────────────────────────────────
 
 if(NOT TARGET ase::markdown)
@@ -366,6 +376,7 @@ target_link_libraries(ase-viewer
     PRIVATE
         viewer_core
         ase::markdown
+        ase::containers     # Foundation SSOT container aliases (Vector/Set/…)
         ase::utils          # format_hex_color for theme.cpp SSOT
         ase::imgcache       # shared LRU image cache (SSOT for image loading)
         ase::adp::treesitter # header-only adapter wrapping tree-sitter grammar lookups

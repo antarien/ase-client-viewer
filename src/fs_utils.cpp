@@ -17,8 +17,9 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <ase/containers/vector.hpp>
+
 #include <cstdio>
-#include <vector>
 
 namespace ase::viewer::fs {
 
@@ -102,7 +103,7 @@ std::string read_symlink_target(const std::string& path) {
 
 void walk_markdown_files_impl(const std::string& root,
                               sigc::slot<void(const std::string&)> on_file) {
-    std::vector<std::string> stack;
+    ase::containers::Vector<std::string> stack;
     stack.push_back(root);
     while (!stack.empty()) {
         const std::string dir = std::move(stack.back());
