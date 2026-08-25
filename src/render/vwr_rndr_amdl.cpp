@@ -13,7 +13,6 @@
 #include "vwr_rndr_amdl.hpp"
 #include <muParser.h>
 #include <string>
-#include <sstream>
 #include <cmath>
 
 namespace ase::viewer::render {
@@ -38,10 +37,27 @@ struct PlotConfig {
 
 PlotConfig parse_config(const char* code, uint32_t len) {
     PlotConfig cfg;
-    std::istringstream stream(std::string(code, len));
+    /**
+     * Line walk without a stringstream. This reproduces std::getline exactly, and the three
+     * cases that make the difference are: a text WITHOUT a trailing newline still yields its
+     * last line; a text ENDING in a newline does NOT yield an empty line after it; and an
+     * empty line between two newlines IS yielded. A loop that simply splits on '\n' gets the
+     * first two wrong, which is why the bound is `pos < size` and the tail is taken whole.
+     * A trailing '\r' stays in the line, as getline leaves it too.
+     */
+    const std::string text(code, len);
     std::string line;
+    size_t pos = 0;
 
-    while (std::getline(stream, line)) {
+    while (pos < text.size()) {
+        const size_t nl = text.find('\n', pos);
+        if (nl == std::string::npos) {
+            line = text.substr(pos);
+            pos = text.size();
+        } else {
+            line = text.substr(pos, nl - pos);
+            pos = nl + 1;
+        }
         if (line.find("plot:") == 0 || line.find("y =") != std::string::npos || line.find("y=") != std::string::npos) {
             auto eq = line.find('=');
             if (eq != std::string::npos) {

@@ -48,7 +48,7 @@ std::string compute_status_text(const std::string& path,
         }
     }
     const int read_min = (word_count + 199) / 200;
-    const std::string mode_str = mode == 0 ? "TECH" : "DSGN";
+    const std::string mode_str = mode == VIEWER_MODE_TECH ? "TECH" : "DSGN";
     return fs::base_name(path) + "  |  " +
            std::to_string(word_count) + " words  |  ~" +
            std::to_string(read_min) + " min read  |  " + mode_str;
@@ -555,7 +555,7 @@ void ViewerWindow::switch_mode_directory(uint8_t target_mode) {
     const std::string last = fs::base_name(base);
     if (last == "tech" || last == "cms") base = fs::parent_dir(base);
     const std::string mode_dir =
-        fs::path_join(base, target_mode == 0 ? "tech" : "cms");
+        fs::path_join(base, target_mode == VIEWER_MODE_TECH ? "tech" : "cms");
     if (fs::is_directory(mode_dir)) {
         m_tree_view.load(mode_dir);
         setup_file_watch(mode_dir);

@@ -126,7 +126,6 @@ add_library(viewer_core STATIC
 
     core/include/viewer/engine.hpp
     core/include/viewer/types.hpp
-    core/include/viewer/viewer_module.hpp
 )
 
 target_include_directories(viewer_core
@@ -216,10 +215,16 @@ if(NOT TARGET tree-sitter)
     )
     FetchContent_MakeAvailable(tree_sitter)
 
-    # tree-sitter is a C library — build from source as static lib
+    # tree-sitter is a C library — build from source as static lib.
+    # Upstream v0.22.6 ships no CMakeLists, so the target is built here.
+    # lib.c is the amalgamation: it #includes alloc.c, get_changed_ranges.c,
+    # language.c, lexer.c, node.c, parser.c, query.c, stack.c, subtree.c,
+    # tree_cursor.c, tree.c and wasm_store.c. Listing it alone is both the
+    # explicit source list the validator requires and the upstream-intended
+    # build — the previous file(GLOB) additionally compiled every included
+    # .c a second time as its own translation unit.
     if(NOT TARGET tree-sitter)
-        file(GLOB TS_SOURCES ${tree_sitter_SOURCE_DIR}/lib/src/*.c)
-        add_library(tree-sitter STATIC ${TS_SOURCES})
+        add_library(tree-sitter STATIC ${tree_sitter_SOURCE_DIR}/lib/src/lib.c)
         target_include_directories(tree-sitter PUBLIC
             ${tree_sitter_SOURCE_DIR}/lib/include
             ${tree_sitter_SOURCE_DIR}/lib/src
@@ -328,6 +333,21 @@ add_executable(ase-viewer
     src/render/dsl/vwr_dsl_leaf.cpp
     src/render/dsl/vwr_dsl_meda.cpp
     src/render/dsl/vwr_dsl_misc.cpp
+
+    include/viewer/window.hpp
+    include/viewer/theme.hpp
+    include/viewer/fs_utils.hpp
+    include/viewer/read_tracker.hpp
+    include/viewer/file_monitor.hpp
+    include/viewer/header_bar.hpp
+    include/viewer/status_bar.hpp
+    include/viewer/keyboard.hpp
+    include/viewer/tree_view.hpp
+    include/viewer/file_tree_columns.hpp
+    include/viewer/canvas.hpp
+    include/viewer/settings.hpp
+    include/viewer/preferences.hpp
+    include/viewer/folder_picker.hpp
 )
 
 target_include_directories(ase-viewer PRIVATE

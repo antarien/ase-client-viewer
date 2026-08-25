@@ -257,7 +257,7 @@ std::string Canvas::dump_text() const {
     std::string out;
     out.reserve(m_content.size() * 2);
     out += "=== MODE: ";
-    out += (m_mode == 0 ? "TECH" : "DSGN");
+    out += (m_mode == VIEWER_MODE_TECH ? "TECH" : "DSGN");
     out += " ===\n\n";
     for (const Node* c = m_doc.root->first_child; c != nullptr; c = c->next_sibling) {
         dump(c, out, 0);

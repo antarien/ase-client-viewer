@@ -24,6 +24,7 @@
  */
 
 #include <render/vwr_rndr_doc.hpp>
+#include <viewer/types.hpp>
 
 #include <ase/markdown/markdown.hpp>
 
@@ -105,7 +106,7 @@ private:
 
     ase::markdown::Document m_doc{};
     bool                    m_has_doc = false;
-    uint8_t                 m_mode    = 0;
+    uint8_t                 m_mode    = VIEWER_MODE_TECH;
     std::string             m_content;
 
     render::InteractiveState m_interactive_state;

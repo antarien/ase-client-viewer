@@ -11,6 +11,8 @@
  * @layer       5
  */
 
+#include <viewer/types.hpp>
+
 #include <cstdint>
 #include <string>
 
@@ -24,7 +26,7 @@ struct ViewerSettings {
 
     // Documents
     std::string default_root;   // default docs directory
-    uint8_t     default_mode = 0;   // 0=TECH, 1=DSGN
+    uint8_t     default_mode = VIEWER_MODE_TECH;
     uint8_t     language     = 0;   // 0=en, 1=de, 2=pt-br
     bool        live_reload  = true;
 
