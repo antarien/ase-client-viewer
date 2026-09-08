@@ -10,11 +10,11 @@ ASE CLIENT BUILD CONFIGURATION
 @module      ase-client-viewer
 @layer       5 (Clients)
 @created     2026-04-12
-@modified    2026-04-12
-@version     00.00.01.00001 [seed]
+@modified    2026-08-25
+@version     00.00.31.00031 [core]
 ]]
 
-# Parse local VERSION if not building from root
+# Parse local VERSION (SSOT) if not building from root
 if(NOT DEFINED ASE_CLIENT_VIEWER_VERSION)
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
         message(FATAL_ERROR "VERSION file not found: ${CMAKE_CURRENT_SOURCE_DIR}/VERSION")
@@ -30,7 +30,7 @@ if(NOT DEFINED ASE_CLIENT_VIEWER_VERSION)
     endif()
 endif()
 
-project(ase-client-viewer VERSION ${ASE_CLIENT_VIEWER_VERSION} LANGUAGES C CXX)
+project(ase-client-viewer VERSION ${ASE_CLIENT_VIEWER_VERSION} LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
