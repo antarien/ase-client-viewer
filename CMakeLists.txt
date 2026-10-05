@@ -30,7 +30,21 @@ if(NOT DEFINED ASE_CLIENT_VIEWER_VERSION)
     endif()
 endif()
 
-project(ase-client-viewer VERSION ${ASE_CLIENT_VIEWER_VERSION} LANGUAGES CXX)
+# C STEHT HIER, WEIL DER ABSCHLUSS C MITBRINGT — NICHT WEIL DIESES ZIEL C FUEHRT.
+#
+# Die eigenen Quellen sind durchweg C++. Neun geholte Vorhaben sind es nicht: cmark-gfm
+# allein traegt 41 C-Dateien, tree-sitter 14, seine sechs Grammatiken je zwei bis sechs,
+# muparser eine. Ohne die Sprache konfiguriert CMake keinen C-Uebersetzer, und dann fehlen
+# CMAKE_C_COMPILE_OBJECT und CMAKE_C_ARCHIVE_CREATE. Die Meldung nennt nicht das Vorhaben,
+# das sie ausloest, sondern nur die fehlende Variable — zweiunddreissig Mal.
+#
+# DIE KONFIGURATION LAEUFT DABEI DURCH: der Fehler fiel beim Erzeugen der Bauregeln, nach
+# „Configuring done". Ein Tor, das nur die Konfiguration prueft, sieht ihn nicht.
+#
+# Alle anderen fuenfzehn Bauten des Hauses stehen zu Recht auf LANGUAGES CXX allein, denn
+# keiner zieht ein C-Vorhaben; der aet-Client fuehrt daneben OBJCXX nach derselben Regel.
+# Die Sprache gehoert zu dem, was ein Baum UEBERSETZT, nicht zu dem, was er schreibt.
+project(ase-client-viewer VERSION ${ASE_CLIENT_VIEWER_VERSION} LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

@@ -703,6 +703,27 @@ if [ "$DO_RUN" = true ]; then
     section_header "Run" 71
     VIEWER_BIN="$BUILD_DIR/bin/ase-viewer"
     if [ -x "$VIEWER_BIN" ]; then
+        # DIE STARTFAEHIGKEIT WIRD GEPRUEFT, NICHT DIE AUSGABE ABGEFANGEN.
+        #
+        # Ein Binaer, dem eine Bibliothek fehlt, stirbt im dynamischen Linker — VOR main().
+        # Zu diesem Zeitpunkt laeuft kein Programmcode, also kann auch keine Konsolen-API die
+        # Meldung formatieren; ld.so schreibt sie roh nach stderr. Genau so erschien
+        # „error while loading shared libraries: libcgraph.so.8" mitten in einer sonst
+        # gesetzten Ausgabe.
+        #
+        # DIE AUSGABE UMZULEITEN WAERE DER FALSCHE GRIFF: dieses Binaer ist ein Fenster und
+        # soll interaktiv laufen; wer sein stderr einsammelt, verschluckt auch alles, was
+        # danach berechtigt kommt. Geprueft wird deshalb VORHER, mit ldd, und zwar auf die
+        # EINZIGE Frage, die der Linker gleich stellen wird.
+        _VWR_MISSING=$(ldd "$VIEWER_BIN" 2>/dev/null | grep 'not found' | awk '{print $1}')
+        if [ -n "$_VWR_MISSING" ]; then
+            section_line "$CROSS" "Start blocked: unresolved libraries"
+            while IFS= read -r _lib; do
+                [ -n "$_lib" ] && section_line "$CROSS" "missing" "$_lib" 18
+            done <<< "$_VWR_MISSING"
+            section_line "$ARROW" "Rebuild against the libraries present today"
+            exit 1
+        fi
         section_line "$ARROW" "Starting ase-viewer"
         "$VIEWER_BIN" "${RUN_ARGS[@]}"
     else
