@@ -19,7 +19,12 @@
  *                --dash-border-secondary= BORDER_SECONDARY   (#1F1F1F)
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/theme.hpp>
@@ -50,7 +55,7 @@ std::string generate_css() {
     using namespace ase::colors;
     namespace t = ase::theme;
 
-    // ── Color tokens — mirror dash/tokens.css aliases ───────────────
+    // COLOR TOKENS — mirror the dash/tokens.css aliases
     const std::string surface_0     = css_hex(SURFACE_0);          // pure black bg
     const std::string surface_1     = css_hex(SURFACE_1);          // elevated card
     const std::string surface_2     = css_hex(SURFACE_2);          // popover, selection
@@ -67,7 +72,7 @@ std::string generate_css() {
     const std::string border_sec    = css_hex(BORDER_SECONDARY);
     const std::string accent        = css_hex(PANEL_CYAN);         // mode-button checked, selection
 
-    // ── Design tokens (cached as CSS strings for readability) ────────
+    // DESIGN TOKENS — cached as CSS strings for readability
     const std::string font_mono     = t::font_mono;
     const std::string fs_xs         = px(t::font_xs);     // 10
     const std::string fs_sm         = px(t::font_sm);     // 11
@@ -85,7 +90,7 @@ std::string generate_css() {
     return
         "* { border-radius: 0; }\n"
 
-        // ── Window + header bar ──────────────────────────────────────
+        // WINDOW + HEADER BAR
         "window { background-color: " + surface_0 + "; color: " + text_primary + ";"
             " font-family: " + font_mono + "; }\n"
         "headerbar { background-color: " + surface_3 + ";"
@@ -95,14 +100,14 @@ std::string generate_css() {
             " color: " + text_light + "; font-family: " + font_mono + ";"
             " font-size: " + fs_md + "; font-weight: bold; }\n"
 
-        // ── Flat glyph buttons in the header (NerdFont markup child) ─
+        // FLAT GLYPH BUTTONS in the header, with a NerdFont markup child
         "headerbar button.flat { background: transparent; border: none;"
             " min-height: " + sp_lg + "; min-width: " + sp_lg + ";"
             " padding: 0 " + sp_sm + "; box-shadow: none; }\n"
         "headerbar button.flat:hover { background-color: " + surface_4 + "; }\n"
         "headerbar button.flat:active { background-color: " + surface_2 + "; }\n"
 
-        // ── TECH / DSGN toggle pair — uppercase mini buttons ─────────
+        // TECH / DSGN TOGGLE PAIR — uppercase mini buttons
         ".mode-button { min-height: " + sp_md + "; min-width: " + sp_xl + ";"
             " padding: " + sp_2 + " " + sp_sm + ";"
             " font-family: " + font_mono + "; font-size: " + fs_xs + ";"
@@ -112,7 +117,7 @@ std::string generate_css() {
         ".mode-button:checked { background-color: " + accent + "; color: " + surface_0 + ";"
             " border-color: " + accent + "; }\n"
 
-        // ── Header search entry — small font like dashboard filter ───
+        // HEADER SEARCH ENTRY — small font, like the dashboard filter
         "headerbar searchentry, headerbar searchentry > text,"
         " headerbar entry, headerbar entry > text {"
             " background-color: " + surface_1 + "; color: " + text_primary + ";"
@@ -121,7 +126,7 @@ std::string generate_css() {
         "headerbar searchentry:focus-within, headerbar entry:focus-within {"
             " border-color: " + accent + "; }\n"
 
-        // ── Sidebar tree view ────────────────────────────────────────
+        // SIDEBAR TREE VIEW
         ".sidebar { background-color: " + surface_0 + ";"
             " border-right: 1px solid " + border_sec + "; }\n"
         ".sidebar treeview { background-color: transparent; color: " + text_muted + ";"
@@ -137,7 +142,7 @@ std::string generate_css() {
         "listview > row:selected { background-color: " + surface_2 + "; color: " + accent + "; }\n"
         "treeexpander { min-width: " + sp_md + "; }\n"
 
-        // ── Popover / menu / scrollbar — dashboard surfaces ──────────
+        // POPOVER / MENU / SCROLLBAR — dashboard surfaces
         "popover, popover > contents, menu, menuitem {"
             " background-color: " + surface_1 + "; color: " + text_primary + "; }\n"
         "button { background-color: " + surface_3 + "; color: " + text_primary + "; }\n"
@@ -147,16 +152,16 @@ std::string generate_css() {
         "scrollbar slider { background-color: " + surface_4 + "; }\n"
         "scrollbar slider:hover { background-color: " + surface_5 + "; }\n"
 
-        // ── Canvas content area ──────────────────────────────────────
+        // CANVAS CONTENT AREA
         ".content-area { background-color: " + surface_0 + "; }\n"
 
-        // ── Welcome placeholder (no document loaded) ─────────────────
+        // WELCOME PLACEHOLDER — no document loaded
         ".welcome-title { font-size: " + fs_lg + "; font-family: " + font_mono + ";"
             " color: " + accent + "; }\n"
         ".welcome-subtitle { font-size: " + fs_sm + "; font-family: " + font_mono + ";"
             " color: " + text_muted + "; }\n"
 
-        // ── Status bar ───────────────────────────────────────────────
+        // STATUS BAR
         ".status-bar { background-color: " + surface_1 + ";"
             " border-top: 1px solid " + border_sec + ";"
             " padding: " + sp_2 + " " + sp_sm + ";"
@@ -166,8 +171,8 @@ std::string generate_css() {
         "progressbar trough { background-color: " + surface_2 + "; min-height: " + sp_xs + "; }\n"
         "progressbar progress { background-color: " + accent + "; min-height: " + sp_xs + "; }\n"
 
-        // ── Adwaita preference window surfaces (fallback until the  ──
-        //    custom dashboard-style dialog ships) — matches explorer. ──
+        // ADWAITA PREFERENCE WINDOW SURFACES — the fallback until the custom
+        //    dashboard-style dialog ships; matches the explorer.
         "preferencespage { background-color: " + surface_0 + "; }\n"
         "preferencespage row.activatable,"
         " preferencespage row.entry,"
@@ -177,7 +182,7 @@ std::string generate_css() {
             " border: 1px solid " + border_sec + "; }\n"
         "preferencespage row.activatable:hover { background-color: " + surface_2_h + "; }\n"
 
-        // ── Dashboard-style settings dialog classes (reserved) ───────
+        // DASHBOARD-STYLE SETTINGS DIALOG CLASSES (reserved)
         ".ase-cfg-window { background-color: " + surface_0 + "; }\n"
         ".ase-cfg-section-title { color: " + text_muted + ";"
             " background-color: " + surface_3 + ";"
@@ -194,7 +199,7 @@ std::string generate_css() {
             " text-transform: uppercase; }\n"
         ".ase-cfg-cell-value { color: " + text_light + "; font-size: " + fs_md + "; }\n"
 
-        // ── Sidebar drawer (rail / backdrop / floating panel) ──────────
+        // SIDEBAR DRAWER — rail, backdrop, floating panel
         ".ase-rail { background-color: " + surface_1 + ";"
             " border-right: 1px solid " + border_sec + "; }\n"
         ".ase-drawer-backdrop { background-color: rgba(0,0,0,0.40); }\n"

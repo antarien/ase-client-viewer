@@ -9,7 +9,12 @@
  *              instance and consults it when formatting tree rows.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    state/lifecycle/progress
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <ase/containers/ordered.hpp>

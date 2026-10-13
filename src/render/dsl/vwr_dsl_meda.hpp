@@ -1,4 +1,22 @@
 #pragma once
+
+/**
+ * @file        vwr_dsl_meda.hpp
+ * @brief       render_callout and the other framed and media directives
+ * @description Declares the entry points for the directives that frame their
+ *              content or carry a medium: callout, quote, aside, terminal,
+ *              matrix, figure, gallery, video, audio and compare. The bodies
+ *              live in vwr_dsl_meda.cpp.
+ *
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
+ */
+
 #include "vwr_dsl_common.hpp"
 namespace ase::viewer::render::dsl {
 double render_callout(RenderContext& ctx, const ase::markdown::Node* node, int cw);

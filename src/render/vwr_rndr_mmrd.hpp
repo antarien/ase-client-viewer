@@ -1,10 +1,21 @@
 #pragma once
 
 /**
- * Mermaid diagram rendering via Graphviz layout engine.
+ * @file        vwr_rndr_mmrd.hpp
+ * @brief       render_mermaid - draws a Mermaid diagram through Graphviz layout
+ * @description Declares the entry point for a mermaid code block. The body
+ *              parses the flowchart and sequence syntax into Graphviz DOT, runs
+ *              the layout engine and draws boxes, edges and labels with Cairo.
+ *              The caller passes the code bytes and gets back the height the
+ *              diagram took.
  *
- * Parses Mermaid flowchart/sequence syntax into Graphviz DOT,
- * runs layout, draws boxes + edges + labels with Cairo.
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <cairomm/cairomm.h>

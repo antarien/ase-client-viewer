@@ -1,20 +1,26 @@
 /**
- * DSL steps directive renderer.
+ * @file        vwr_dsl_step.cpp
+ * @brief       render_steps - the :::steps block as a numbered checklist
+ * @description Renders the ::step children as a numbered checklist: circular
+ *              badges on the left, inline-formatted body content on the right.
+ *              The bodies go through the shared inline markup builder, so bold,
+ *              italic, code, NerdFont icons and links survive.
  *
- * :::steps
- *   ::step{title="Install dependencies"}
- *     run `npm install`
- *   ::step{title="Configure"}
- *     edit `config.toml`
- * :::
- *
- * Renders ::step children as a numbered checklist with circular badges
- * on the left and inline-formatted body content on the right. Step
- * bodies use the shared inline markup builder so bold/italic, code,
- * NerdFont icons and links survive.
+ *              The shape it renders:
+ *                :::steps
+ *                  ::step{title="Install dependencies"}
+ *                    run `npm install`
+ *                  ::step{title="Configure"}
+ *                    edit `config.toml`
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_step.hpp"

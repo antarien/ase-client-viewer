@@ -1,20 +1,26 @@
 /**
- * DSL timeline directive renderer.
+ * @file        vwr_dsl_tmln.cpp
+ * @brief       render_timeline - the :::timeline block as a vertical line
+ * @description Renders the ::event children as a vertical timeline with a
+ *              connecting line between the bullet markers. Every event walks
+ *              its own children through the inline markup builder, so dates,
+ *              titles and bodies keep their inline structure.
  *
- * :::timeline
- *   ::event{date="2026-04-12" title="Phase A complete"}
- *     event description with **bold** and *italic* and (nf-fa-rocket)
- *   ::event{date="2026-04-13"}
- *     more event content
- * :::
- *
- * Renders ::event children as a vertical timeline with a connecting line
- * between bullet markers. Each event walks its own children with the
- * inline markup builder so dates, titles and bodies all preserve
- * inline structure.
+ *              The shape it renders:
+ *                :::timeline
+ *                  ::event{date="2026-04-12" title="Phase A complete"}
+ *                    event description with **bold** and (nf-fa-rocket)
+ *                  ::event{date="2026-04-13"}
+ *                    more event content
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_tmln.hpp"

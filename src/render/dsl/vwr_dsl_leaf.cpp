@@ -1,11 +1,19 @@
 /**
- * DSL leaf directive renderers.
- *
- * Single-line leaf directives that produce small inline-style block
- * elements: ::badge, ::divider, ::spacer, ::progress, ::kbd.
+ * @file        vwr_dsl_leaf.cpp
+ * @brief       render_badge and the other one-line leaf directives
+ * @description Draws the leaf directives that carry their whole content on one
+ *              line and produce a small inline-style block element: ::badge,
+ *              ::divider, ::spacer, ::progress and ::kbd. They share this
+ *              translation unit because they share the shape - no children to
+ *              walk, one measured line to draw.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_leaf.hpp"

@@ -1,11 +1,26 @@
 #pragma once
 
 /**
- * Viewer Engine Interface
+ * @file        engine.hpp
+ * @brief       Viewer engine interface - the platform-agnostic entry points
+ * @description Declares the functions a platform shell calls to drive the
+ *              viewer: the application lifecycle (init, tick, resize, destroy),
+ *              the input bridge from the platform into the engine (key, mouse
+ *              move, mouse button, scroll) and the frame counter as a state
+ *              query.
  *
- * Platform-agnostic entry points for the viewer application.
- * Platform shells (GTK4 desktop) call these functions to drive the viewer.
- * Mirrors the aet-client-native engine.hpp pattern.
+ *              THE SHELL KNOWS THE ENGINE, NEVER THE REVERSE: the GTK4 desktop
+ *              shell calls in, and nothing here names GTK. The file mirrors the
+ *              engine.hpp of aet-client-native so a second shell can be written
+ *              against the same surface.
+ *
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/screen
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <cstdint>

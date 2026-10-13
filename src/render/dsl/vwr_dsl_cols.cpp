@@ -1,19 +1,26 @@
 /**
- * DSL columns directive renderer.
+ * @file        vwr_dsl_cols.cpp
+ * @brief       render_columns - the :::columns block as even side-by-side cols
+ * @description Renders the ::col children side by side with even widths. Each
+ *              column walks its own children through the shared inline markup
+ *              builder, so bold, italic, code, NerdFont icons, links and inline
+ *              math survive the split instead of flattening to plain text.
  *
- * :::columns
- *   ::col
- *     left column markdown content
- *   ::col
- *     right column markdown content
- * :::
- *
- * Renders ::col children side-by-side with even widths. Each column
- * walks its own children with the inline markup builder so bold,
- * italic, code, NerdFont icons, links and inline math survive.
+ *              The shape it renders:
+ *                :::columns
+ *                  ::col
+ *                    left column markdown content
+ *                  ::col
+ *                    right column markdown content
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/layout
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_cols.hpp"

@@ -1,18 +1,25 @@
 /**
- * DSL hero directive renderer.
+ * @file        vwr_dsl_hero.cpp
+ * @brief       render_hero - the :::hero block as a full-width banner
+ * @description Renders a full-width banner with a tinted background, a left
+ *              accent bar and a large H1-style heading. Body content - any
+ *              inline markdown that is not itself a child directive - is drawn
+ *              as a body Pango layout below the title, with bold, italic, code
+ *              and NerdFont icons preserved through the shared inline markup
+ *              builder.
  *
- * :::hero{title="…"}
- *   subtitle / description content
- * :::
- *
- * Renders a full-width banner with a tinted background, left accent bar
- * and a large H1-style heading. Body content (any inline markdown that is
- * not a child directive) is rendered as a body Pango layout below the
- * title — bold, italic, code, NerdFont icons all preserved through the
- * shared inline markup builder.
+ *              The shape it renders:
+ *                :::hero{title="…"}
+ *                  subtitle / description content
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_hero.hpp"

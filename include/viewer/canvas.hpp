@@ -20,7 +20,12 @@
  *              rich rendering.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <render/vwr_rndr_doc.hpp>
@@ -68,6 +73,15 @@ public:
 
     /** True if a document is loaded. */
     bool has_document() const noexcept { return m_has_doc; }
+
+    /**
+     * False when the parse could not hold the whole document, so what the
+     * canvas draws is LESS than the file. The parser grows its arena and
+     * re-runs by itself; this reports the one case where even its ceiling was
+     * not enough. A truncated tree looks exactly like a short document, which
+     * is why the window says it out loud instead of drawing it silently.
+     */
+    bool document_complete() const noexcept { return m_doc.arena_exhausted == 0; }
 
     /**
      * Re-parse the current content with a new mode. No-op if no document

@@ -1,10 +1,24 @@
 #pragma once
 
 /**
- * Syntax highlighting for code blocks using tree-sitter.
+ * @file        vwr_rndr_synt.hpp
+ * @brief       syntax_highlight - colours a code block through tree-sitter
+ * @description Declares the one entry point the code-block renderer calls. The
+ *              body parses the code with tree-sitter and returns a Pango markup
+ *              string whose spans carry the colours, for cpp, typescript, bash,
+ *              json, yaml, python and cmake.
  *
- * Parses code content, produces colored spans for Pango markup.
- * Supported languages: cpp, typescript, bash, json, yaml, python, cmake.
+ *              AN UNSUPPORTED LANGUAGE IS NOT AN ERROR: the function returns the
+ *              plain text without markup, so the block renders unhighlighted
+ *              instead of not rendering.
+ *
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <string>

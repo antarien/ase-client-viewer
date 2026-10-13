@@ -1,22 +1,32 @@
 #pragma once
 
 /**
- * Text rendering utilities for the ASE Markdown Viewer.
+ * @file        vwr_rndr_text.hpp
+ * @brief       Text measurement and drawing for every markdown text element
+ * @description Declares the Pango-based measuring and drawing every text
+ *              element of the document goes through: headings, paragraphs,
+ *              code and the small labels. The sizes mirror the Tailwind classes
+ *              of the web docviewer one to one (text-xs, text-sm, text-base,
+ *              text-lg, text-2xs, text-3xs), so the native viewer draws at the
+ *              same pixel sizes as ase-client-web.
  *
- * Provides Pango-based text measurement and drawing for all markdown
- * text elements (headings, paragraphs, code, etc.). Sizes mirror the
- * web docviewer's Tailwind classes 1:1 (text-xs, text-sm, text-base,
- * text-lg, text-2xs, text-3xs) so the native viewer renders at the
- * same pixel sizes as ase-client-web.
+ *              THE SIZES ARE GLOBALS AND NOT constexpr ON PURPOSE: the user can
+ *              change the body size in Preferences, and set_body_font_px() is
+ *              the one mutator that derives every dependent class from it
+ *              through the Tailwind ratio table.
  *
- * Fonts:
- *   - Body  Fira Code (matches web font-mono on the docs container)
- *   - Code  Fira Code (text-3xs / 10 px)
- *   - Icons Symbols Nerd Font Mono (NerdFont glyph fallback)
- *   - Math  STIX Two Text (display math via ase::adp::microtex)
+ *              Fonts: body and code Fira Code (the web font-mono of the docs
+ *              container), icons Symbols Nerd Font Mono as the NerdFont glyph
+ *              fallback, math STIX Two Text for display math through
+ *              ase::adp::microtex.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <pangomm.h>

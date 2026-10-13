@@ -1,22 +1,31 @@
 /**
- * DSL accordion directive renderer with click-to-expand interactivity.
+ * @file        vwr_dsl_acrn.cpp
+ * @brief       render_accordion - the :::accordion block with click-to-expand
+ * @description Draws the accordion and keeps its open state across traversals.
+ *              Each :::accordion consumes a sequential index
+ *              (ctx.next_accordion_index). On the first traversal the open
+ *              state is initialised from the panels' `open=true` attributes, or
+ *              from the first panel alone when none is flagged; later
+ *              traversals read the persisted state from
+ *              ctx.state->panel_open[idx][...]. Header bars become click
+ *              regions, and a click toggles the matching bit and queues a
+ *              redraw.
  *
- * :::accordion
- *   ::panel{title="Section 1" open=true}
- *     content for section 1
- *   ::panel{title="Section 2"}
- *     content for section 2
- * :::
- *
- * Each :::accordion consumes a sequential index (ctx.next_accordion_index).
- * On the first traversal the open state is initialised from the panel
- * `open=true` attributes (or the first panel only when none are flagged).
- * Subsequent traversals read the persisted open state from
- * ctx.state->panel_open[idx][...]. Header bars become click regions; the
- * viewer toggles the matching bit on click and queues a redraw.
+ *              The shape it renders:
+ *                :::accordion
+ *                  ::panel{title="Section 1" open=true}
+ *                    content for section 1
+ *                  ::panel{title="Section 2"}
+ *                    content for section 2
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_acrn.hpp"

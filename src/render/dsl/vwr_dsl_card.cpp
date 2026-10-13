@@ -1,20 +1,27 @@
 /**
- * DSL cards directive renderer.
+ * @file        vwr_dsl_card.cpp
+ * @brief       render_cards - the :::cards block as a grid row of cards
+ * @description Lays the child ::card directives out as a CSS-grid-style row of
+ *              N columns, three by default. Every card walks its own children
+ *              for inline body content and carries a title attribute and an
+ *              optional icon. The heights are measured per card first, so the
+ *              row aligns to its tallest entry instead of to its first.
  *
- * :::cards{cols=3}
- *   ::card{title="…" icon="nf-fa-…"}
- *     body markdown content
- *   ::card{title="…"}
- *     more body content
- * :::
- *
- * Lays out child ::card directives into a CSS-grid-style row of N
- * columns (default 3). Each card walks its own children for inline body
- * content, supports a title attribute and optional icon. Heights are
- * measured per card so the row aligns to the tallest entry.
+ *              The shape it renders:
+ *                :::cards{cols=3}
+ *                  ::card{title="…" icon="nf-fa-…"}
+ *                    body markdown content
+ *                  ::card{title="…"}
+ *                    more body content
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_card.hpp"

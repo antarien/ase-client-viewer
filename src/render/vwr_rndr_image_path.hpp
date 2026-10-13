@@ -1,19 +1,29 @@
 #pragma once
 
 /**
- * Image URL → filesystem path resolver for the viewer's image renderers.
+ * @file        vwr_rndr_image_path.hpp
+ * @brief       resolve_image_path - turns a markdown image URL into a path
+ * @description Markdown image URLs arrive in three flavours, and each needs a
+ *              different answer: `file://...` loses its prefix and is treated as
+ *              an absolute filesystem path, `/cms/images/foo.png` is an absolute
+ *              web path and is rewritten onto the bundled web public root
+ *              (ASE_WEB_PUBLIC_ROOT, a compile definition of the ase-viewer
+ *              target), and `http(s)://...` is returned as-is because the native
+ *              loader cannot fetch it - ase::imgcache then renders its
+ *              placeholder.
  *
- * Markdown image URLs come in three flavours:
- *   - file://...         → strip the prefix, treat as absolute filesystem path
- *   - /cms/images/foo.png → absolute web path, rewrite onto the bundled web
- *                           public root (ASE_WEB_PUBLIC_ROOT compile def)
- *   - http(s)://...      → not supported by the native loader, return as-is
- *                           so ase::imgcache renders its placeholder fallback
+ *              HEADER-ONLY ON PURPOSE: the document renderer
+ *              (vwr_rndr_doc.cpp) and the DSL block renderers (the :::figure
+ *              and :::gallery of vwr_dsl_meda.cpp) share ONE definition this
+ *              way, instead of two that could drift apart.
  *
- * Header-only so both the document-level renderer (vwr_rndr_doc.cpp) and
- * the DSL block renderers (vwr_dsl_meda.cpp's :::figure / :::gallery)
- * share one definition. ASE_WEB_PUBLIC_ROOT is provided as a compile
- * definition by the ase-viewer CMake target.
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-15
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <string>

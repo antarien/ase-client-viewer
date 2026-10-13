@@ -1,15 +1,24 @@
 /**
- * DSL directive dispatcher.
+ * @file        vwr_dsl_dispatch.cpp
+ * @brief       render_directive - routes a directive node to its renderer
+ * @description Routes NODE_BLOCK_DIRECTIVE and NODE_LEAF_DIRECTIVE nodes to the
+ *              specialist renderer that owns their directive name. Each
+ *              renderer lives in its own translation unit (vwr_dsl_*.cpp) and
+ *              shares the helpers of vwr_dsl_common.hpp and the inline markup
+ *              builder of vwr_rndr_inline.hpp.
  *
- * Routes NODE_BLOCK_DIRECTIVE / NODE_LEAF_DIRECTIVE nodes to the
- * specialist renderer for their directive name. Each renderer lives in
- * its own translation unit (vwr_dsl_*.cpp) and shares the helpers from
- * vwr_dsl_common.hpp + the inline markup builder from
- * vwr_rndr_inline.hpp. Unknown directive names fall through to
- * render_generic which keeps the content visible inside a purple panel.
+ *              AN UNKNOWN NAME IS NOT A DROPPED BLOCK: it falls through to
+ *              render_generic, which keeps the content visible inside a purple
+ *              panel. A directive nobody renders would otherwise vanish from
+ *              the page without a trace.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_dispatch.hpp"

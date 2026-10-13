@@ -11,7 +11,12 @@
  *              portal backend is eligible.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-05-06
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <sigc++/slot.h>

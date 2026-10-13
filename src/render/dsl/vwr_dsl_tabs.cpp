@@ -1,22 +1,30 @@
 /**
- * DSL tabs directive renderer with click-to-switch interactivity.
+ * @file        vwr_dsl_tabs.cpp
+ * @brief       render_tabs - the :::tabs block with click-to-switch
+ * @description Each :::tabs directive consumes a sequential index
+ *              (ctx.next_tabs_index), and that index is the key into
+ *              ctx.state->active_tab. A tab header writes a HitRegion into
+ *              ctx.regions; the viewer's GestureClick handler updates the
+ *              active index and queues a redraw. The tabs walk their children
+ *              through the inline markup builder, so headings, bold, italic,
+ *              code, NerdFont icons and inline math survive in the active tab
+ *              body.
  *
- * :::tabs
- *   ::tab{title="Overview"}
- *     content for the first tab
- *   ::tab{title="Detail"}
- *     content for the second tab
- * :::
- *
- * Each :::tabs directive consumes a sequential index (ctx.next_tabs_index)
- * which serves as the key into ctx.state->active_tab. Clicking a tab
- * header writes a HitRegion into ctx.regions; the viewer's GestureClick
- * handler updates the active index and queues a redraw. Tabs walk their
- * children with the inline markup builder so headings, bold/italic, code,
- * NerdFont icons and inline math survive in the active tab body.
+ *              The shape it renders:
+ *                :::tabs
+ *                  ::tab{title="Overview"}
+ *                    content for the first tab
+ *                  ::tab{title="Detail"}
+ *                    content for the second tab
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_tabs.hpp"

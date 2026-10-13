@@ -14,7 +14,12 @@
  *   ase-viewer                  : opens <ase>/docs/ase-docs/tech
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/screen
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/fs_utils.hpp>

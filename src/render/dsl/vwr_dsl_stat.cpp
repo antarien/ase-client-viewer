@@ -1,18 +1,27 @@
 /**
- * DSL stats directive renderer.
+ * @file        vwr_dsl_stat.cpp
+ * @brief       render_stats - the :::stats block as a row of metric tiles
+ * @description Renders a row of large-number metric tiles, each ::stat a big
+ *              cyan value above a muted label.
  *
- * :::stats
- *   ::stat{value="42" label="entities"}
- *   ::stat{value="1.2 ms" label="frame time"}
- *   ::stat{value="98%" label="cache hit"}
- * :::
+ *              A MISSING ATTRIBUTE IS NOT A MISSING TILE: without value or
+ *              label the renderer falls back to the inline text of the node, so
+ *              a half-written directive still shows what it carries.
  *
- * Renders a row of large-number metric tiles. Each ::stat shows a big
- * cyan value above a muted label. Falls back to inline text if the
- * value/label attributes are missing.
+ *              The shape it renders:
+ *                :::stats
+ *                  ::stat{value="42" label="entities"}
+ *                  ::stat{value="1.2 ms" label="frame time"}
+ *                  ::stat{value="98%" label="cache hit"}
+ *                :::
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_stat.hpp"
