@@ -12,7 +12,12 @@
  *              plain text representation for clipboard export.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/canvas.hpp>
@@ -36,7 +41,7 @@ namespace {
 
 using namespace ase::markdown;
 
-// ── AST text dump helpers (clipboard export path) ──────────────────
+// AST TEXT DUMP HELPERS — the clipboard export path
 
 void append_indent(std::string& out, int depth) {
     for (int i = 0; i < depth; ++i) out += "  ";

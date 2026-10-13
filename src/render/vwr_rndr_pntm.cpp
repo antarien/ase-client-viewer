@@ -1,41 +1,39 @@
-/*
- * ==============================================================================
- * ASE VIEWER — PlantUML renderer
- * ==============================================================================
+/**
+ * ASE VIEWER PLANTUML RENDERER
  *
  * @file        vwr_rndr_pntm.cpp
  * @brief       PlantUML code block to SVG to Cairo renderer
- * @description Forwards a PlantUML DSL block to the `plantuml -tsvg` binary
- *              (probed on PATH at runtime), caches the resulting SVG on
- *              disk under $XDG_CACHE_HOME/ase-viewer/plantuml/<fnv1a>.svg,
- *              and hands the cached path to ase::imgcache::render() —
- *              which already decodes SVG through Gdk::Pixbuf for the
- *              figure/image renderers. No library link required: a missing
- *              `plantuml` binary degrades gracefully to a textual
- *              placeholder, identical in behaviour to the HAVE_GRAPHVIZ
- *              fallback in vwr_rndr_mmrd.cpp.
+ * @description Forwards a PlantUML DSL block to the `plantuml -tsvg` binary,
+ *              probed on PATH at runtime, caches the resulting SVG on disk
+ *              under $XDG_CACHE_HOME/ase-viewer/plantuml/<fnv1a>.svg and hands
+ *              the cached path to ase::imgcache::render(), which already decodes
+ *              SVG through Gdk::Pixbuf for the figure and image renderers.
+ *
+ *              No library link is required. A missing `plantuml` binary degrades
+ *              to a textual placeholder, identical in behaviour to the
+ *              HAVE_GRAPHVIZ fallback in vwr_rndr_mmrd.cpp, so a document that
+ *              carries a diagram still renders on a machine without the tool.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
- * @category    process/computation/algorithm
- *
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
  * @created     2026-05-11
- * @modified    2026-05-11
- * @version     00.00.01.00001 [seed]
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  *
- * ==============================================================================
  * CLIENT INFRASTRUCTURE COMPLIANCE
- * ==============================================================================
- * [ ] No raw new/delete (smart pointers or stack only)
+ *
+ * [ ] No raw new/delete, stack and Glib allocation only
  * [ ] No std::vector / std::map / std::set in source-level data structures
- * [ ] No switch/case dispatch — use if/else ladders
+ * [ ] No switch/case dispatch, if/else ladders only
  * [ ] No std::stringstream / std::strcmp / std::strlen
- * [ ] PlantUML invocation goes through fork()+execvp() (no shell parsing)
- * [ ] Stdout / stderr of the child silenced to /dev/null
- * [ ] SVG cache keyed by FNV-1a of the DSL bytes (deterministic, collision-tolerant)
- * [ ] Cache directory rooted at $XDG_CACHE_HOME (g_get_user_cache_dir())
+ * [ ] PlantUML invocation goes through fork() plus execlp(), no shell parsing
+ * [ ] Stdout and stderr of the child silenced to /dev/null
+ * [ ] SVG cache keyed by FNV-1a of the DSL bytes, deterministic and collision tolerant
+ * [ ] Cache directory rooted at $XDG_CACHE_HOME via g_get_user_cache_dir()
  * [ ] Placeholder fallback when `plantuml` is not on PATH
- * ==============================================================================
+ * [ ] Every failure path returns a drawn placeholder, never an empty region
  */
 
 #include "vwr_rndr_pntm.hpp"

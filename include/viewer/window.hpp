@@ -16,7 +16,12 @@
  *              installed during build.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/screen
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/canvas.hpp>
@@ -82,7 +87,7 @@ private:
      */
     bool handle_type_ahead(unsigned keyval, unsigned state);
 
-    // ── Sidebar (drawer) — web-parity pinnable drawer ────────────────
+    // SIDEBAR DRAWER — the web-parity pinnable drawer
     void apply_sidebar_state();
     void handle_pin_toggle();
     void handle_close_drawer();
@@ -119,7 +124,7 @@ private:
     Gtk::Paned m_paned{Gtk::Orientation::HORIZONTAL};
     Gtk::Box   m_main_box{Gtk::Orientation::VERTICAL, 0};
 
-    // ── Sidebar (drawer) widgets ─────────────────────────────────────
+    // SIDEBAR DRAWER WIDGETS
     Gtk::Overlay m_overlay;
     Gtk::Box     m_content_box{Gtk::Orientation::HORIZONTAL, 0};
     Gtk::Box     m_rail{Gtk::Orientation::VERTICAL, 0};

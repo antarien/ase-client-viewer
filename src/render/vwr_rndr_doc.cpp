@@ -1,41 +1,40 @@
-/*
- * ==============================================================================
- * ASE VIEWER — Document renderer
- * ==============================================================================
+/**
+ * ASE VIEWER DOCUMENT RENDERER
  *
  * @file        vwr_rndr_doc.cpp
- * @brief       AST → Cairo dispatcher for the native markdown viewer
- * @description Walks the ase::markdown POD AST, emits Cairo/Pango draw calls
- *              for every node type, accumulates y position, returns total
- *              content height. Inline children inside paragraphs are rendered
- *              via a Pango markup builder which preserves emphasis, strong,
- *              inline code, links, NerdFont icons (font-family switch via the
- *              build-generated nerdfont_table.hpp) and inline math (passed
- *              through to ase::adp::microtex). Block-level math, mermaid diagrams,
- *              syntax-highlighted code blocks and DSL directives are routed
- *              to their dedicated specialist renderers.
+ * @brief       AST to Cairo dispatcher for the native markdown viewer
+ * @description Walks the ase::markdown POD AST, emits Cairo and Pango draw
+ *              calls for every node type, accumulates the y position and
+ *              returns the total content height, which is what the scrollbar
+ *              needs.
+ *
+ *              Inline children inside a paragraph are rendered through a Pango
+ *              markup builder that preserves emphasis, strong, inline code,
+ *              links, NerdFont icons through the build-generated
+ *              nerdfont_table.hpp, and inline math, which is passed on to
+ *              ase::adp::microtex. Block-level math, mermaid and plantuml
+ *              diagrams, syntax-highlighted code blocks and DSL directives are
+ *              routed to their dedicated specialist renderers.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
- * @category    process/computation/algorithm
- *
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
  * @created     2026-04-12
- * @modified    2026-04-13
- * @version     00.00.19.00019 [poc]
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  *
- * ==============================================================================
  * CLIENT INFRASTRUCTURE COMPLIANCE
- * ==============================================================================
+ *
  * [ ] No raw new/delete (smart pointers or stack only)
  * [ ] No std::vector / std::map / std::set in source-level data structures
- * [ ] No switch/case dispatch — use if/else ladders
+ * [ ] No switch/case dispatch, if/else ladders only
  * [ ] No std::stringstream / std::strcmp / std::strlen
- * [ ] All inline rich-text routed through Pango markup, never collect_text()
- * [ ] NerdFont icons rendered via build-generated nerdfont_table.hpp
- * [ ] Math handled by ase::adp::microtex adapter (adapter/ase-adp-microtex)
+ * [ ] All inline rich text routed through Pango markup, never collect_text()
+ * [ ] NerdFont icons rendered via the build-generated nerdfont_table.hpp
+ * [ ] Math handled by the ase::adp::microtex adapter
  * [ ] Mermaid diagrams routed to render_mermaid()
- * [ ] All block heights measured before drawing (no fixed magic numbers)
- * ==============================================================================
+ * [ ] All block heights measured before drawing, no fixed magic numbers
  */
 
 #include "vwr_rndr_doc.hpp"
@@ -69,7 +68,7 @@ namespace ase::viewer::render {
 
 namespace {
 
-// ── Color SSOT — derived from ase::colors::* (generated from colors.ts)
+// COLOR SSOT, DERIVED FROM ase::colors::* AS GENERATED FROM colors.ts
 //
 // Channels are unpacked from each 0xAARRGGBB constant via inline shifts so
 // the underlying hex stays in the generated header and never lives in two
@@ -105,7 +104,7 @@ constexpr double WARN_R = rgb_r(::ase::colors::DOCS_CALLOUT_WARN_BORDER), WARN_G
 constexpr double TIP_R  = rgb_r(::ase::colors::DOCS_CALLOUT_TIP_BORDER),  TIP_G  = rgb_g(::ase::colors::DOCS_CALLOUT_TIP_BORDER),  TIP_B  = rgb_b(::ase::colors::DOCS_CALLOUT_TIP_BORDER);
 constexpr double NOTE_R = rgb_r(::ase::colors::DOCS_CALLOUT_NOTE_BORDER), NOTE_G = rgb_g(::ase::colors::DOCS_CALLOUT_NOTE_BORDER), NOTE_B = rgb_b(::ase::colors::DOCS_CALLOUT_NOTE_BORDER);
 
-// ── Spacing constants — web 1:1 (cmsViewer.tsx) ────────────────────
+// SPACING CONSTANTS, WEB ONE TO ONE FROM cmsViewer.tsx
 //   <p>     mb-2.5 = 10
 //   code/table mt-3 mb-5 (12/20)
 //   <hr>    my-6 = 24 each side
@@ -150,7 +149,7 @@ inline const std::string& link_span_open() {
     return s;
 }
 
-// ── Color dispatch (no switch) ─────────────────────────────────────
+// COLOR DISPATCH WITHOUT A SWITCH
 
 struct RGB { double r, g, b; };
 
@@ -173,8 +172,10 @@ void set_rgb(const Cairo::RefPtr<Cairo::Context>& cr, const RGB& c) {
     cr->set_source_rgb(c.r, c.g, c.b);
 }
 
-// ── Cairo dash helpers (cairomm-1.16 set_dash takes std::vector — bypass
-// via the C cairo API to keep the source vector-free). ────────────────
+// CAIRO DASH HELPERS
+//
+// cairomm-1.16 set_dash takes a std::vector, so these two go through the
+// C cairo API instead and keep this source vector-free.
 
 void set_dash_2(const Cairo::RefPtr<Cairo::Context>& cr, double a, double b) {
     double dashes[2] = {a, b};
@@ -197,7 +198,7 @@ inline void set_layout_markup(const Glib::RefPtr<Pango::Layout>& layout,
     layout->set_markup(markup);
 }
 
-// ── Inline math layout support ─────────────────────────────────────
+// INLINE MATH LAYOUT SUPPORT
 //
 // Paragraphs that contain NODE_MATH_INLINE children render text via the
 // shared Pango markup builder, but inline math expressions are inserted
@@ -409,7 +410,7 @@ void render_paragraph_inline_math(RenderContext& ctx,
     ctx.y += layout_h + PARA_SPACING;
 }
 
-// ── Per-node renderers ─────────────────────────────────────────────
+// PER-NODE RENDERERS
 
 void render_heading(RenderContext& ctx, const ase::markdown::Node* node, int content_width) {
     const HeadingSpacing sp = heading_spacing(node->heading_level);
@@ -881,7 +882,7 @@ void render_image(RenderContext& ctx, const ase::markdown::Node* node, int conte
 
 }  // namespace
 
-// ── Public dispatcher (no switch, if/else ladder) ──────────────────
+// PUBLIC DISPATCHER, AN IF/ELSE LADDER WITHOUT A SWITCH
 
 void render_node(RenderContext& ctx, const ase::markdown::Node* node) {
     if (node == nullptr) return;

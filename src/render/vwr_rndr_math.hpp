@@ -1,16 +1,24 @@
 #pragma once
 
 /**
- * ASE Viewer — LaTeX math renderer (thin wrapper over ase::adp::microtex)
+ * @file        vwr_rndr_math.hpp
+ * @brief       render_math and measure_math - LaTeX through ase::adp::microtex
+ * @description A thin shim over the ase::adp::microtex adapter. All LaTeX
+ *              parsing, box-tree layout and drawing happen inside the adapter
+ *              module; this header carries the signature and the result struct
+ *              the viewer's call sites use.
  *
- * Historic header that exposed a hand-rolled KaTeX subset is replaced
- * with a thin shim around the ase::adp::microtex adapter. All LaTeX parsing,
- * box-tree layout, and drawing happens inside the adapter module;
- * this file keeps the historic public signature so existing viewer
- * call sites do not need to change.
+ *              MEASURE AND DRAW ARE TWO CALLS because inline math needs its
+ *              box before anything is painted: the caller reserves a Pango
+ *              shape box from measure_math and draws the glyphs afterwards.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <cairomm/cairomm.h>

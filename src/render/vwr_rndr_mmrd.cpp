@@ -1,42 +1,44 @@
-/*
- * ==============================================================================
- * ASE VIEWER — Mermaid → Graphviz renderer
- * ==============================================================================
+/**
+ * ASE VIEWER MERMAID RENDERER
  *
  * @file        vwr_rndr_mmrd.cpp
  * @brief       Mermaid flowchart to Graphviz DOT to Cairo renderer
- * @description Converts a small Mermaid flowchart subset into Graphviz DOT
- *              format, runs the `dot` layout engine via libgvc, and draws
- *              the resulting node + edge geometry with Cairo primitives.
- *              Supported Mermaid features: flowchart/graph direction,
- *              nodes with ID[Label] form, bare and labelled edges
- *              (including the `A -->|label| B` pipe syntax used by the
- *              CMS demo), and subgraph wrappers (flattened — no DOT
- *              cluster grouping yet). Anything else is silently dropped
- *              so libcgraph never sees garbage and never emits a
- *              "syntax error in line N" to stderr.
+ * @description Converts a small Mermaid flowchart subset into Graphviz DOT,
+ *              runs the `dot` layout engine through libgvc and draws the
+ *              resulting node and edge geometry with Cairo primitives.
+ *
+ *              Covered Mermaid features: the flowchart and graph direction,
+ *              nodes in the ID[Label] form, bare and labelled edges including
+ *              the pipe-delimited label form the CMS demo uses, and subgraph
+ *              wrappers, which are flattened because DOT cluster grouping is
+ *              not driven here.
+ *
+ *              Everything else is dropped without a word, so libcgraph never
+ *              sees garbage and never writes a syntax error of its own to
+ *              stderr. Without HAVE_GRAPHVIZ the same block renders as a
+ *              textual placeholder instead, the behaviour vwr_rndr_pntm.cpp
+ *              mirrors for a missing `plantuml` binary.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
- * @category    process/computation/algorithm
- *
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
  * @created     2026-04-12
- * @modified    2026-04-13
- * @version     00.00.02.00002 [poc]
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  *
- * ==============================================================================
  * CLIENT INFRASTRUCTURE COMPLIANCE
- * ==============================================================================
- * [ ] No raw new/delete (smart pointers or stack only)
+ *
+ * [ ] No raw new/delete, Graphviz objects freed through their own API
  * [ ] No std::vector / std::map / std::set in source-level data structures
- * [ ] No switch/case dispatch — use if/else ladders
+ * [ ] No switch/case dispatch, if/else ladders only
  * [ ] No std::stringstream / std::strcmp / std::strlen
- * [ ] Mermaid → DOT accepts labelled edges to avoid libcgraph parse errors
- * [ ] Unknown / malformed lines are dropped instead of forwarded
- * [ ] Node identifiers validated against DOT identifier grammar
- * [ ] Cairo coordinates flipped (Graphviz Y-up, Cairo Y-down)
+ * [ ] Mermaid to DOT accepts labelled edges, so libcgraph sees no parse error
+ * [ ] Unknown and malformed lines are dropped instead of forwarded
+ * [ ] Node identifiers validated against the DOT identifier grammar
+ * [ ] Cairo coordinates flipped, Graphviz counts Y up and Cairo Y down
  * [ ] Placeholder fallback when HAVE_GRAPHVIZ is undefined
- * ==============================================================================
+ * [ ] A failed agmemread draws a diagnostic line instead of dereferencing
  */
 
 #include "vwr_rndr_mmrd.hpp"

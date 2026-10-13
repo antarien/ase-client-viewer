@@ -1,15 +1,30 @@
 /**
- * DSL "media" group renderers — :::callout, :::quote, :::aside, :::terminal, :::matrix.
+ * @file        vwr_dsl_meda.cpp
+ * @brief       The media group of DSL renderers: callout, quote, aside, terminal, matrix, figure, gallery, video, audio, compare
+ * @description Holds the directive renderers that present a block of content
+ *              inside a framed surface. All of them share one strategy: walk
+ *              the inline children with the shared markup builder, measure
+ *              with a Pango layout, draw a tinted rounded background plus the
+ *              accent bar or border the web block uses, then draw the content
+ *              through draw_layout().
  *
- * All five share the same Pango-layout strategy: walk inline children
- * with the shared markup builder, measure with a Pango layout, draw a
- * tinted rounded background plus a left accent bar, then render the
- * content through draw_layout(). No Cairo Toy text API, no
- * std::stringstream, no std::vector — std-library terminal line
- * splitting is hand-written.
+ *              No Cairo toy text API and no stringstream are used; the
+ *              terminal line splitting and the matrix column parsing are
+ *              hand-written over fixed-capacity arrays, so this file needs no
+ *              std::vector either.
+ *
+ *              Each renderer names the web component it mirrors, and every
+ *              colour comes from ase::colors::* through vwr_dsl_common.hpp,
+ *              so a change in the web palette reaches the native surface by
+ *              regenerating the header rather than by editing here.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_meda.hpp"
@@ -75,7 +90,7 @@ double render_callout(RenderContext& ctx, const ase::markdown::Node* node, int c
     //   container: my-6 mb-4 (24/16 outer), px-5 py-4 (20/16 inner)
     //   border-left: 3 px solid accent
     //   radius: 0 4 4 0 (right side only — approximated as 4 all sides
-    //                    until rounded_rect supports per-corner radii)
+    //                    while rounded_rect takes one radius for all corners)
     //   bg: DOCS_CALLOUT_*_BG semantic tint
     //   header (icon + title): gap-2 (8) + mb-2 (8)
     //   body: TEXT_PANEL_MUTED, monospace
@@ -202,12 +217,12 @@ double render_terminal(RenderContext& ctx, const ase::markdown::Node* node, int 
     //   body: px-4 py-3 (16/12), text-sm (14), font-mono,
     //         leading-relaxed (1.625), TEXT_TERMINAL, prompt $ → PANEL_GREEN
     //
-    // The old line-by-line path used a fixed LINE_H of 18 px which does
-    // not match Pango's natural line height for text-sm + wrap, so long
-    // lines that wrapped collapsed visually (next logical line drawn on
-    // top of the wrap). Single-layout path lets Pango size correctly,
-    // uses get_pixel_size for the actual drawn height, and keeps the
-    // green-prompt highlighting via a span-merged markup string.
+    // The body is drawn as a SINGLE Pango layout. A fixed line height cannot
+    // match Pango's natural line height for text-sm with wrapping, and a
+    // wrapped long line would then be overdrawn by the next logical line.
+    // One layout lets Pango size the block, get_pixel_size reports the height
+    // actually drawn, and the green prompt survives in a span-merged markup
+    // string.
     constexpr double HDR_PX     = 16.0;  // px-4
     constexpr double HDR_PY     = 8.0;   // py-2
     constexpr double BODY_PX    = 16.0;  // px-4
@@ -263,10 +278,10 @@ double render_terminal(RenderContext& ctx, const ase::markdown::Node* node, int 
                            rgb_b(::ase::colors::TEXT_PANEL_MUTED));
     draw_layout(ctx.cr, title_layout, dx, ctx.y + (HEADER_H - tlh) / 2.0);
 
-    // Body as a SINGLE Pango layout — green span wraps every `$ ` prompt
-    // prefix. Any line break becomes literal `\n` in the markup since
-    // Pango layouts honour embedded newlines and wrap long lines via
-    // WORD_CHAR when they exceed the layout width.
+    // Body markup — a green span wraps every `$ ` prompt prefix. A line
+    // break becomes a literal `\n` in the markup, since a Pango layout
+    // honours embedded newlines and wraps long lines via WORD_CHAR when
+    // they exceed the layout width.
     std::string body_markup;
     {
         bool at_line_start = true;
@@ -525,9 +540,7 @@ double render_matrix(RenderContext& ctx, const ase::markdown::Node* node, int cw
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// figure
-// ─────────────────────────────────────────────────────────────────────
+// FIGURE
 //
 // Parse a CSS width value like "35%", "60%", "480px" into a pixel width
 // bounded by the container width. Returns the container width as a
@@ -611,11 +624,10 @@ double render_figure(RenderContext& ctx, const ase::markdown::Node* node, int cw
     else if (is_right) figure_x = ctx.margin_left + (cw - figure_w);
     else               figure_x = ctx.margin_left + (cw - figure_w) / 2.0;
 
-    // Caption — use build_inline_content which correctly walks through
-    // the figure's paragraph children and emits inline markup for EM,
-    // STRONG, TEXT etc. while NODE_IMAGE falls through to an empty
-    // build_inline_children call (no alt-text emission). No ad-hoc
-    // subtree skipping needed.
+    // Caption — build_inline_content walks the figure's paragraph children
+    // and emits inline markup for EM, STRONG, TEXT and the like, while
+    // NODE_IMAGE falls through to an empty build_inline_children call and
+    // emits no alt text. No subtree skipping of its own is needed here.
     std::string caption_md = build_inline_content(node);
 
     // Pre-cache the image to know draw height at the figure width.
@@ -679,9 +691,7 @@ double render_figure(RenderContext& ctx, const ase::markdown::Node* node, int cw
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// gallery
-// ─────────────────────────────────────────────────────────────────────
+// GALLERY
 double render_gallery(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
     // Web 1:1 (cmsGalleryBlock.tsx):
     //   container: my-4, grid gap 0.5rem (8 px)
@@ -742,9 +752,7 @@ double render_gallery(RenderContext& ctx, const ase::markdown::Node* node, int c
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// video
-// ─────────────────────────────────────────────────────────────────────
+// VIDEO
 double render_video(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
     // Web 1:1 (cmsVideoLeaf.tsx):
     //   container: my-4, border 1 BORDER_A20, radius 4
@@ -843,9 +851,7 @@ double render_video(RenderContext& ctx, const ase::markdown::Node* node, int cw)
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// audio
-// ─────────────────────────────────────────────────────────────────────
+// AUDIO
 double render_audio(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
     // Web 1:1 (cmsAudioLeaf.tsx):
     //   container: my-4, bg CMS_AUDIO_BG, border 1 BORDER_A20, radius 4
@@ -952,9 +958,7 @@ double render_audio(RenderContext& ctx, const ase::markdown::Node* node, int cw)
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// compare
-// ─────────────────────────────────────────────────────────────────────
+// COMPARE
 double render_compare(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
     // Web 1:1 (cmsCompareBlock.tsx):
     //   container: my-4, flex gap-4 (16) stretch

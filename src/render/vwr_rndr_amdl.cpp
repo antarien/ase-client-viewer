@@ -1,13 +1,28 @@
 /**
- * ASE-Math DSL → muparser eval → Cairo 2D plots.
+ * @file        vwr_rndr_amdl.cpp
+ * @brief       ASE-Math DSL plotted through muparser into Cairo
+ * @description Parses the ASE-Math DSL directives of a fenced block and draws
+ *              the resulting function plot: background, grid, both axes, the
+ *              sampled curve, the range labels and the expression label.
  *
- * Parses ASE-Math DSL directives:
- *   plot: y = sin(x) * exp(-x/10)
- *   range: x=-10..10, y=-2..2
- *   marker: x=0, label="Origin"
- *   band: x=2..4, color=cyan
+ *              Accepted directives:
+ *                plot: y = sin(x) * exp(-x/10)
+ *                range: x=-10..10, y=-2..2
+ *                marker: x=0, label="Origin"
+ *                band: x=2..4, color=cyan
  *
- * Renders: axes, grid, curve, markers, labels.
+ *              The expression itself is evaluated by muparser, one sample per
+ *              step across the x range, and a sample outside the plot area
+ *              breaks the polyline instead of being clamped, so a pole leaves
+ *              a gap rather than a vertical artefact.
+ *
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_rndr_amdl.hpp"

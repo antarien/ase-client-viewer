@@ -1,9 +1,18 @@
 /**
  * @file        status_bar.cpp
- * @brief       StatusBar implementation
+ * @brief       StatusBar implementation - label left, progress bar right
+ * @description Builds the one horizontal Box the status bar owns: a
+ *              left-aligned, expanding Label and a right-aligned ProgressBar.
+ *              Until a document is loaded the label reads "No document", so the
+ *              bar never shows an empty field whose meaning nobody can tell.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/status_bar.hpp>

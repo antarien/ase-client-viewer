@@ -1,13 +1,29 @@
 /**
- * DSL generic / fallback directive renderer.
+ * @file        vwr_dsl_misc.cpp
+ * @brief       Generic fallback plus the toc, changelog, team and author DSL blocks
+ * @description Holds the directive renderers that share no layout family with
+ *              each other and would each be too small for a file of their own:
+ *              the generic fallback, the table of contents box, the changelog
+ *              block, the team grid with its member cards and the single
+ *              author block.
  *
- * Used by the dispatcher when no specialist renderer matches the
- * directive name. Renders the inline children inside a tinted purple
- * panel with the directive name as a small label so unsupported
- * directives stay visible (instead of silently becoming empty boxes).
+ *              render_generic is what the dispatcher reaches for when no
+ *              specialist renderer matches the directive name. It draws the
+ *              inline children inside a tinted purple panel and labels it with
+ *              the directive name, so an unsupported directive stays visible
+ *              instead of turning into an empty box.
+ *
+ *              Every spacing, colour and font size mirrors the web CMS blocks
+ *              one to one, with the web component named at each renderer; the
+ *              colours come from ase::colors::* through vwr_dsl_common.hpp.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_dsl_misc.hpp"
@@ -67,9 +83,7 @@ double render_generic(RenderContext& ctx, const ase::markdown::Node* node, int c
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// toc — auto-generated table of contents
-// ─────────────────────────────────────────────────────────────────────
+// TOC, THE AUTO-GENERATED TABLE OF CONTENTS
 //
 // The web variant uses an IntersectionObserver against #h1..#h6 elements
 // in the rendered DOM to highlight the active heading. Native viewer has
@@ -134,9 +148,7 @@ double render_toc(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
     return total_h + 16.0;  // my-4 outer
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// changelog
-// ─────────────────────────────────────────────────────────────────────
+// CHANGELOG
 double render_changelog(RenderContext& ctx, const ase::markdown::Node* node, int cw) {
     // Web 1:1 (cmsChangelogBlock.tsx):
     //   container: my-4, bg CMS_CHANGELOG_BG, border 1 SURFACE_3, radius 4
@@ -239,9 +251,7 @@ double render_changelog(RenderContext& ctx, const ase::markdown::Node* node, int
     return total_h + 16.0;
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// team / member
-// ─────────────────────────────────────────────────────────────────────
+// TEAM AND MEMBER
 namespace {
 
 // Render a single ::member card at (x, y) with width w. Returns card height.

@@ -1,16 +1,29 @@
 #pragma once
 
 /**
- * Document renderer — walks the ase::markdown AST and dispatches
- * Cairo draw calls for each node type. Computes layout (y-positions)
- * and renders visible nodes within the viewport.
+ * @file        vwr_rndr_doc.hpp
+ * @brief       render_document and render_node - the block dispatcher
+ * @description Declares the walker over the ase::markdown AST that dispatches a
+ *              Cairo draw call per node type, computes the y positions and
+ *              renders the nodes inside the viewport. It returns the total
+ *              content height, which is what the scrollbar needs.
  *
- * Interactive directives (:::tabs / :::accordion) are made clickable
- * through a hit-region list and a per-document interactive state. The
- * renderer assigns each directive a sequential index in document order
- * and writes click rectangles into the context. The viewer hosts the
- * GestureClick controller and updates state on hit, then queues a
- * redraw — no widget tree integration required.
+ *              Interactive directives (:::tabs, :::accordion) become clickable
+ *              through a hit-region list and a per-document interactive state
+ *              declared here. The renderer assigns each directive a sequential
+ *              index in document order and writes click rectangles into the
+ *              context; the viewer hosts the GestureClick controller, updates
+ *              the state on a hit and queues a redraw. No widget tree
+ *              integration is required for that, which is why the state is a
+ *              plain struct and not a widget.
+ *
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <ase/markdown/markdown.hpp>

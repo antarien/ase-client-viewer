@@ -1,9 +1,25 @@
 /**
- * Pango layout factories — match clients/ase-client-web/ase-web-docviewer
- * Tailwind text class sizes 1:1 via set_absolute_size (device pixels).
+ * @file        vwr_rndr_text.cpp
+ * @brief       Pango layout factories and the body-size recomputation
+ * @description Builds the Pango layouts every text element draws through, with
+ *              the Tailwind text class sizes of
+ *              clients/ase-client-web/ase-web-docviewer applied one to one via
+ *              set_absolute_size, so one unit is one device pixel whatever the
+ *              DPI says.
+ *
+ *              set_body_font_px is the one mutator of the size table: it clamps
+ *              the body size to the range a reader can still use and derives
+ *              every heading, code and small size from it through the Tailwind
+ *              ratios. Deriving them beats storing them, because a stored set
+ *              can disagree with its own body size.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_rndr_text.hpp"

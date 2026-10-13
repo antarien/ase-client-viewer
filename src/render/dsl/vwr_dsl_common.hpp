@@ -1,24 +1,36 @@
 #pragma once
 
 /**
- * Shared utilities for DSL directive renderers.
+ * @file        vwr_dsl_common.hpp
+ * @brief       Shared utilities for every DSL directive renderer
+ * @description Carries the colour and spacing constants, the attribute and
+ *              child accessors and the Cairo helpers that the renderers under
+ *              src/render/dsl/ share, so a directive renderer holds only its
+ *              own layout.
  *
- * Design SSOT — all colors and tokens come from the generated headers:
- *   colors.hpp         (from sha-web-styles/src/colors.ts → ase::colors::*)
- *   design_tokens.hpp  (from sha-web-styles/src/theme.css → ase::theme::*)
- * Never hardcode hex, pixel or font values here — regenerate with
- *   node sha-web-console/generate-colors.cjs
- *   node sha-web-console/generate-design-tokens.cjs
+ *              Design SSOT: every colour and token comes from the generated
+ *              headers, colors.hpp from sha-web-styles/src/colors.ts into
+ *              ase::colors::* and design_tokens.hpp from theme.css into
+ *              ase::theme::*. Never write a hex, pixel or font value here;
+ *              regenerate instead with generate-colors.cjs and
+ *              generate-design-tokens.cjs under sha-web-console.
  *
- * Inline text — vwr_rndr_inline.hpp (shared with the document dispatcher)
+ *              Inline text goes through vwr_rndr_inline.hpp, the same header
+ *              the document dispatcher uses, so the two produce identical
+ *              markup for identical inline content.
  *
- * No std::vector / std::strcmp / std::sstream — directive children are
- * walked through the iterator-style helpers (first_child_named /
- * next_child_named) and inline content is built into a Pango markup
- * string via build_inline_children().
+ *              No std::vector, no std::strcmp and no stringstream: directive
+ *              children are walked through the iterator-style helpers
+ *              first_child_named and next_child_named, and inline content is
+ *              built into one Pango markup string.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "../vwr_rndr_doc.hpp"
@@ -41,7 +53,7 @@
 
 namespace ase::viewer::render::dsl {
 
-// ── Color SSOT — derived from ase::colors::* (generated from colors.ts)
+// COLOR SSOT, DERIVED FROM ase::colors::* AS GENERATED FROM colors.ts
 
 // Extract normalised R/G/B/A channels from a 0xAARRGGBB constant so each
 // Cairo cr->set_source_rgb / _rgba call can consume component-wise values
@@ -85,7 +97,7 @@ constexpr double DOCSFG_R = rgb_r(::ase::colors::TEXT_DOCS_FG),     DOCSFG_G = r
 constexpr double SURFACE_R     = rgb_r(::ase::colors::DOCS_DSL_BG),        SURFACE_G     = rgb_g(::ase::colors::DOCS_DSL_BG),        SURFACE_B     = rgb_b(::ase::colors::DOCS_DSL_BG);
 constexpr double SURFACE_BRT_R = rgb_r(::ase::colors::DOCS_TABLE_ROW_ALT), SURFACE_BRT_G = rgb_g(::ase::colors::DOCS_TABLE_ROW_ALT), SURFACE_BRT_B = rgb_b(::ase::colors::DOCS_TABLE_ROW_ALT);
 
-// ── Layout spacing — 1:1 web parity (Tailwind 4) ───────────────────
+// LAYOUT SPACING, ONE TO ONE WEB PARITY WITH TAILWIND 4
 //
 // These two constants are literal pixel values taken directly from the web
 // CSS and do not map cleanly onto the 4/8/16/24/32/48 design-token scale
@@ -105,7 +117,7 @@ constexpr double SURFACE_BRT_R = rgb_r(::ase::colors::DOCS_TABLE_ROW_ALT), SURFA
 constexpr double PARA_SPACING = 10.0;
 constexpr double BLOCK_PAD    = 12.0;
 
-// ── Attribute & child accessors ────────────────────────────────────
+// ATTRIBUTE AND CHILD ACCESSORS
 
 inline bool name_is(const ase::markdown::Node* node, const char* name) {
     if (node == nullptr) return false;
@@ -161,7 +173,7 @@ inline uint32_t count_children_named(const ase::markdown::Node* parent, const ch
     return n;
 }
 
-// ── Inline content builder shortcut ────────────────────────────────
+// INLINE CONTENT BUILDER SHORTCUT
 //
 // Build a Pango markup string from the inline children of a directive.
 // Skips child directives so callers can render them separately.
@@ -191,7 +203,7 @@ inline std::string get_attr_or_text(const ase::markdown::Node* node, const char*
     return build_inline_content(node);
 }
 
-// ── Cairo helpers ──────────────────────────────────────────────────
+// CAIRO HELPERS
 
 inline void rounded_rect(const Cairo::RefPtr<Cairo::Context>& cr,
                          double x, double y, double w, double h, double r) {

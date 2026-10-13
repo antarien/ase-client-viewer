@@ -1,14 +1,24 @@
 /**
  * @file        window.cpp
  * @brief       ViewerWindow implementation - build, wire, route
- * @description build_ui() composes the header + Paned(tree | canvas) +
- *              status bar and hooks every feature slot to one of the
- *              handle_* methods below. The handlers are the ONLY place
- *              that mutates multiple features at once - individual
- *              feature files never reach across to each other.
+ * @description build_ui() composes the header, the Paned of tree and canvas
+ *              and the status bar, and hooks every feature slot to one of the
+ *              handle_* methods below. The handlers are the ONLY place that
+ *              mutates several features at once; an individual feature file
+ *              never reaches across to another one.
+ *
+ *              The status line is built here as well, from the word count of
+ *              the loaded text and from the completeness of the parse: a
+ *              document whose parse arena ran out is marked as incomplete
+ *              instead of being shown as if it were whole.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/screen
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/window.hpp>
@@ -37,7 +47,8 @@ namespace {
 
 std::string compute_status_text(const std::string& path,
                                 const std::string& content,
-                                uint8_t mode) {
+                                uint8_t mode,
+                                bool document_complete) {
     int word_count = 0;
     bool in_word = false;
     for (char c : content) {
@@ -49,9 +60,16 @@ std::string compute_status_text(const std::string& path,
     }
     const int read_min = (word_count + 199) / 200;
     const std::string mode_str = mode == VIEWER_MODE_TECH ? "TECH" : "DSGN";
-    return fs::base_name(path) + "  |  " +
-           std::to_string(word_count) + " words  |  ~" +
-           std::to_string(read_min) + " min read  |  " + mode_str;
+    std::string out = fs::base_name(path) + "  |  " +
+                      std::to_string(word_count) + " words  |  ~" +
+                      std::to_string(read_min) + " min read  |  " + mode_str;
+    // A parse that hit the arena ceiling drops nodes, so the rendered page is
+    // shorter than the file. Saying so beats letting the reader believe the
+    // document ends where the drawing stops.
+    if (!document_complete) {
+        out += "  |  INCOMPLETE: parse arena exhausted";
+    }
+    return out;
 }
 
 }  // namespace
@@ -76,13 +94,12 @@ void ViewerWindow::build_ui() {
     m_canvas.set_mode(m_settings.default_mode);
 
     // Push the persisted font size into the render pipeline before the
-    // first paint. Without this the FONT_PX_* defaults (Tailwind body=12)
-    // would silently override whatever the user previously set in
-    // Preferences — the bug that made the font-size spin button look
-    // dead until 2026-05-11.
+    // first paint. Without this call the FONT_PX_* defaults (Tailwind
+    // body=12) override whatever the user set in Preferences, and the
+    // font-size spin button looks dead although it writes its value.
     m_canvas.apply_font_size(m_settings.font_size);
 
-    // ── Header bar ──
+    // HEADER BAR
     m_window.set_titlebar(m_header);
 
     m_header.on_mode_changed([this](uint8_t mode) {
@@ -104,7 +121,7 @@ void ViewerWindow::build_ui() {
         handle_open_settings();
     });
 
-    // ── Sidebar header (pin + close-X) ───────────────────────────────
+    // SIDEBAR HEADER WITH PIN AND CLOSE BUTTON
     m_pin_button.set_icon_name("view-pin-symbolic");
     m_pin_button.set_has_frame(false);
     m_pin_button.set_tooltip_text("Pin / unpin sidebar");
@@ -132,7 +149,7 @@ void ViewerWindow::build_ui() {
         handle_file_activated(path);
     });
 
-    // ── Paned (sidebar slot + canvas) ────────────────────────────────
+    // PANED: SIDEBAR SLOT AND CANVAS
     m_paned.set_shrink_start_child(false);
     m_paned.set_vexpand(true);
     m_paned.set_start_child(m_sidebar_container);
@@ -144,7 +161,7 @@ void ViewerWindow::build_ui() {
             static_cast<ViewerWindow*>(self)->handle_paned_position_changed();
         }), this);
 
-    // ── Rail strip (collapsed sidebar) ───────────────────────────────
+    // RAIL STRIP, THE COLLAPSED SIDEBAR
     m_rail.set_size_request(40, -1);
     m_rail.set_vexpand(true);
     m_rail.add_css_class("ase-rail");
@@ -171,7 +188,7 @@ void ViewerWindow::build_ui() {
         }), this);
     gtk_widget_add_controller(GTK_WIDGET(m_rail.gobj()), GTK_EVENT_CONTROLLER(rail_drag));
 
-    // ── Content box (rail + paned), wrapped in overlay ───────────────
+    // CONTENT BOX OF RAIL AND PANED, WRAPPED IN THE OVERLAY
     m_content_box.set_hexpand(true);
     m_content_box.set_vexpand(true);
     m_content_box.append(m_rail);
@@ -204,14 +221,14 @@ void ViewerWindow::build_ui() {
     m_backdrop.set_visible(false);
     m_overlay_sidebar_holder.set_visible(false);
 
-    // ── Main vertical layout: overlay + status bar ───────────────────
+    // MAIN VERTICAL LAYOUT: OVERLAY ABOVE THE STATUS BAR
     m_main_box.append(m_overlay);
     m_main_box.append(m_status_bar.widget());
     m_window.native()->set_child(m_main_box);
 
     apply_sidebar_state();
 
-    // ── Keyboard shortcuts ──
+    // KEYBOARD SHORTCUTS
     m_shortcuts.on_focus_search([this]() { handle_focus_search(); });
     m_shortcuts.on_escape      ([this]() { handle_escape(); });
     m_shortcuts.on_refresh     ([this]() { handle_refresh(); });
@@ -220,7 +237,8 @@ void ViewerWindow::build_ui() {
     m_shortcuts.on_copy_dump   ([this]() { handle_copy_dump(); });
     m_shortcuts.install_on(*m_window.native_widget());
 
-    // ── Type-ahead search ──
+    // TYPE-AHEAD SEARCH
+    //
     // Any printable keystroke (no modifiers) opens the search bar and
     // seeds the entry with the typed character. Mirrors the
     // ase-client-explorer type-ahead handler: CAPTURE phase so the
@@ -238,8 +256,9 @@ void ViewerWindow::build_ui() {
             GTK_WIDGET(m_window.native()->gobj()), type_ahead);
     }
 
-    // ── Drop target ──
-    // Files / folders dragged from a file manager land here and open
+    // DROP TARGET
+    //
+    // Files and folders dragged from a file manager land here and open
     // directly inside the viewer. Single-item drop only; for a directory
     // we replace the tree root, for a regular file we open it.
     setup_drop_target();
@@ -292,7 +311,7 @@ void ViewerWindow::present() {
     m_window.present();
 }
 
-// ── Handlers ────────────────────────────────────────────────────────
+// HANDLERS
 
 void ViewerWindow::handle_file_activated(const std::string& path) {
     open_file(path);
@@ -522,7 +541,7 @@ void ViewerWindow::handle_copy_dump() {
     clipboard->set_text(dump);
 }
 
-// ── Internals ───────────────────────────────────────────────────────
+// INTERNALS
 
 void ViewerWindow::open_file(const std::string& path) {
     std::string content;
@@ -543,7 +562,8 @@ void ViewerWindow::open_file(const std::string& path) {
     const uint8_t mode = m_canvas.current_mode();
 
     m_canvas.load_document(content, mode);
-    m_status_bar.set_text(compute_status_text(path, content, mode));
+    m_status_bar.set_text(compute_status_text(path, content, mode,
+                                              m_canvas.document_complete()));
     m_status_bar.set_progress(0);
 }
 
@@ -569,7 +589,8 @@ void ViewerWindow::update_status_bar_for_current() {
         return;
     }
     m_status_bar.set_text(compute_status_text(
-        m_current_file, m_canvas.content(), m_canvas.current_mode()));
+        m_current_file, m_canvas.content(), m_canvas.current_mode(),
+        m_canvas.document_complete()));
     m_status_bar.set_progress(0);
 }
 

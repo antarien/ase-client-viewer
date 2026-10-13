@@ -1,37 +1,41 @@
-/*
- * ==============================================================================
- * ASE VIEWER — Inline rendering helpers
- * ==============================================================================
+/**
+ * ASE VIEWER INLINE RENDERING HELPERS
  *
  * @file        vwr_rndr_inline.cpp
- * @brief       Shared inline-text helpers used by the document dispatcher
- *              and every DSL directive renderer.
- * @description Walks inline AST children of a block-level node and emits
- *              a Pango markup string. Supports emphasis/strong/strike,
- *              inline code, links, NerdFont icons (font_family span), wiki
- *              links, glossary terms, cross-references, version inserts and
- *              inline math (italic chartreuse placeholder). NerdFont glyphs
- *              are looked up via render/nerdfont_table.hpp which is
- *              auto-generated from clients/ase-client-web/src/utils/icon-replacer.ts.
+ * @brief       Shared inline-text helpers for every block renderer
+ * @description Walks the inline AST children of a block-level node and emits
+ *              one Pango markup string. Covered are emphasis, strong, strike,
+ *              inline code, links, NerdFont icons, wiki links, glossary terms,
+ *              cross references, version inserts and inline text directives.
+ *
+ *              Inline math is emitted as italic text in the DOCS_H2 tint and
+ *              not as glyphs: display math goes through vwr_rndr_math.cpp,
+ *              where no Pango layout stands between the renderer and Cairo.
+ *
+ *              NerdFont glyphs are looked up in render/nerdfont_table.hpp,
+ *              which the build generates from the web client's icon replacer,
+ *              so one icon table serves both surfaces. Every color comes from
+ *              the generated colors.hpp through css(), so no literal hex value
+ *              is written into the markup here.
  *
  * @module      ase-client-viewer
- * @layer       5 (Clients)
- * @category    process/computation/algorithm
- *
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
  * @created     2026-04-13
- * @modified    2026-04-13
- * @version     00.00.01.00001 [poc]
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  *
- * ==============================================================================
  * CLIENT INFRASTRUCTURE COMPLIANCE
- * ==============================================================================
- * [ ] No raw new/delete (smart pointers or stack only)
+ *
+ * [ ] No raw new/delete, std::string growth only
  * [ ] No std::vector / std::map / std::set in source-level data structures
- * [ ] No switch/case dispatch — use if/else ladders
- * [ ] No std::stringstream / std::strcmp / std::strlen
- * [ ] All inline rich-text routed through Pango markup
- * [ ] NerdFont icons rendered via build-generated nerdfont_table.hpp
- * ==============================================================================
+ * [ ] No switch/case dispatch, if/else ladders only
+ * [ ] No std::stringstream / std::strcmp / std::strlen, cstr_len and streq instead
+ * [ ] All inline rich text routed through Pango markup
+ * [ ] NerdFont icons rendered through the build-generated nerdfont_table.hpp
+ * [ ] Every color read from the generated colors.hpp, no literal hex in markup
+ * [ ] Every node pointer checked before it is followed
  */
 
 #include "vwr_rndr_inline.hpp"

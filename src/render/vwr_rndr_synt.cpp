@@ -1,19 +1,32 @@
 /**
- * Syntax highlighting via tree-sitter.
+ * @file        vwr_rndr_synt.cpp
+ * @brief       Syntax highlighting of a code block through tree-sitter
+ * @description Parses the code of a fenced block with the grammar of its
+ *              language, walks the syntax tree and produces Pango markup with
+ *              one coloured span per token type. A language without a grammar
+ *              falls back to escaped plain text, so an unknown fence still
+ *              renders its content.
  *
- * Parses code with language-specific grammars, walks the syntax tree,
- * and produces Pango markup with colored spans per token type.
+ *              The token colors come from ase::colors::SYN_*, generated from
+ *              colors.ts through sha-web-console. That palette mirrors
+ *              vscDarkPlus, the theme react-syntax-highlighter uses in the web
+ *              viewer, so the native and the web surface highlight the same
+ *              code identically.
  *
- * Token colors come from ase::colors::SYN_* (generated from colors.ts via
- * sha-web-console). The SYN_* palette mirrors vscDarkPlus (the same theme
- * used by react-syntax-highlighter in the web CMS viewer) so native and
- * web syntax highlighting produce visually identical output.
+ *              Tree-sitter is a C library. Its grammar entry points, among
+ *              them tree_sitter_cpp and tree_sitter_python, are wrapped behind
+ *              ase::adp::treesitter::grammar_*() by the adapter under
+ *              adapter/ase-adp-treesitter/. This file therefore carries no
+ *              extern "C" block of its own: the C linkage lives only in the
+ *              adapter header, where the validator path whitelist allows it.
  *
- * Tree-sitter is a C library — its grammar entry-points (tree_sitter_cpp,
- * tree_sitter_python, …) are wrapped behind ase::adp::treesitter::grammar_*()
- * by the adapter at adapter/ase-adp-treesitter/. This file therefore
- * has no extern "C" block of its own; the C linkage lives only in the
- * adapter's header where the validator path-whitelist allows it.
+ * @module      ase-client-viewer
+ * @layer       5 (Servers & Clients)
+ * @category    render/draw/command
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-12
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include "vwr_rndr_synt.hpp"
@@ -30,7 +43,8 @@ namespace ase::viewer::render {
 
 namespace {
 
-// ── SSOT-routed token colors (lazy-init from ase::colors::SYN_*) ──────
+// SSOT-ROUTED TOKEN COLORS, LAZY INIT FROM ase::colors::SYN_*
+//
 // Each helper formats its underlying 0xAARRGGBB constant once at static
 // init via ase::utils::format_hex_color and returns a stable c_str()
 // pointer for the program lifetime. Never write hex literals here — add

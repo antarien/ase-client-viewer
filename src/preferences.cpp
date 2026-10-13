@@ -2,19 +2,28 @@
  * @file        preferences.cpp
  * @brief       Dashboard-style preferences window (cockpit layout)
  * @description Ported from clients/ase-client-explorer/src/settings_dialog.cpp.
- *              Drops AdwPreferencesPage entirely (centres content at ~600 px
- *              max width) in favour of dense, full-width GTK pages added
- *              directly to an AdwViewStack. Every spacing / font-size value
- *              flows from ase::theme::* and every colour from ase::colors::*
- *              through the .ase-cfg-* CSS classes in theme.cpp.
+ *              Drops AdwPreferencesPage entirely, which centres its content at
+ *              roughly 600 px maximum width, in favour of dense full-width GTK
+ *              pages added directly to an AdwViewStack. Every spacing and font
+ *              size flows from ase::theme::* and every colour from
+ *              ase::colors::* through the .ase-cfg-* CSS classes in theme.cpp.
  *
  *              Pages:
  *                APPEARANCE — colour scheme, font size, code font
  *                DOCUMENTS  — default root, default mode, language, live reload
  *                RENDERING  — line numbers, math rendering, mermaid diagrams
  *
+ *              Each control writes its one ViewerSettings field in its own
+ *              callback and saves at once, so the window needs no apply button
+ *              and no second copy of the settings.
+ *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/screen
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/preferences.hpp>
@@ -44,7 +53,7 @@ namespace t = ase::theme;
 constexpr int CFG_WIDTH  = t::space_2xl * 24 + t::space_md;   // 1168
 constexpr int CFG_HEIGHT = t::space_2xl * 15 + t::space_xl;   // 752
 
-// ── Shared context ─────────────────────────────────────────────────────
+// SHARED CONTEXT
 //
 // Function-local static (Meyers singleton). Only one preferences window
 // can be open at a time, and every callback is a free function that
@@ -70,7 +79,7 @@ void save_and_notify() {
     if (c.on_changed) c.on_changed();
 }
 
-// ── Small builders (mirror explorer settings_dialog.cpp) ──────────────
+// SMALL BUILDERS, MIRRORING THE EXPLORER settings_dialog.cpp
 
 GtkWidget* make_section_strip(const char* title) {
     GtkWidget* label = gtk_label_new(title);
@@ -140,10 +149,10 @@ GtkWidget* make_cell_row(std::initializer_list<GtkWidget*> cells) {
     return row;
 }
 
-// ── Field-specific callbacks ──────────────────────────────────────────
+// FIELD-SPECIFIC CALLBACKS
 //
 // One free function per ViewerSettings field. Each reads ctx() and
-// writes its one field, then saves + notifies.
+// writes its one field, then saves and notifies.
 
 void cb_color_scheme_changed(GObject* obj, GParamSpec*, gpointer) {
     PrefContext& c = ctx();
@@ -240,7 +249,7 @@ void cb_mermaid_render_changed(GObject* obj, GParamSpec*, gpointer) {
     save_and_notify();
 }
 
-// ── Pages ─────────────────────────────────────────────────────────────
+// PAGES
 
 GtkWidget* build_appearance_page() {
     PrefContext& c = ctx();
@@ -417,7 +426,7 @@ void show_preferences_window(
     gtk_window_set_transient_for(GTK_WINDOW(window.native()), parent.gobj());
     window.set_modal(false);
 
-    // ── Escape closes the preferences window ──
+    // ESCAPE CLOSES THE PREFERENCES WINDOW
     {
         GtkEventController* esc = gtk_event_controller_key_new();
         g_signal_connect(esc, "key-pressed",
@@ -448,7 +457,7 @@ void show_preferences_window(
     adw_view_stack_add_titled(raw_stack, documents_page,  "documents",  "DOCUMENTS");
     adw_view_stack_add_titled(raw_stack, rendering_page,  "rendering",  "RENDERING");
 
-    // ── Body: tab bar (left-aligned) above the stack ──
+    // BODY: LEFT-ALIGNED TAB BAR ABOVE THE STACK
     GtkWidget* body = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
     gtk_widget_add_css_class(body, "ase-cfg-window");
     gtk_widget_set_hexpand(body, TRUE);

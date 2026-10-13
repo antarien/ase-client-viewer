@@ -1,18 +1,27 @@
 /**
  * @file        header_bar.cpp
- * @brief       HeaderBar implementation — glyph buttons + search-in-title
- * @description Mirrors clients/ase-client-explorer window header mechanics
- *              1:1. Every glyph traces back to the generated ui_icons.hpp
- *              SSOT (icon-definitions.ts). set_show_title_buttons(false)
- *              removes the OS minimise/maximise/close triple — the window
- *              is closed via the Escape fallthrough in ViewerWindow.
+ * @brief       HeaderBar implementation — glyph buttons and search in title
+ * @description Mirrors the window header mechanics of ase-client-explorer one
+ *              to one. Every glyph traces back to the generated ui_icons.hpp,
+ *              which the build derives from icon-definitions.ts, so the two
+ *              clients cannot drift apart on an icon.
  *
- *              TECH / DSGN mode toggles live at pack_start and keep the
- *              sidebar's subfolder swap working. Everything else (search,
- *              mark-all-read, refresh, settings) is a flat glyph button.
+ *              set_show_title_buttons(false) removes the minimise, maximise
+ *              and close triple of the window manager: the window closes
+ *              through the Escape fallthrough in ViewerWindow instead.
+ *
+ *              The TECH and DSGN mode toggles sit at pack_start and keep the
+ *              subfolder swap of the sidebar working. Everything else, search,
+ *              mark-all-read, refresh and settings, is a flat glyph button
+ *              packed at the end in reverse visual order.
  *
  * @module      ase-client-viewer
- * @layer       5
+ * @layer       5 (Servers & Clients)
+ * @category    render/ui/widget
+ * @usecase     usecase:100008 - render the knowledge stock
+ * @created     2026-04-13
+ * @modified    2026-10-13
+ * @version     00.00.35.00035 [core]
  */
 
 #include <viewer/header_bar.hpp>
@@ -100,7 +109,8 @@ HeaderBar::HeaderBar() {
     m_title_label.add_css_class("title");
     m_header.set_title_widget(m_title_label);
 
-    // ── TECH / DSGN toggle pair at pack_start ──────────────────────────
+    // TECH AND DSGN TOGGLE PAIR AT pack_start
+    //
     // Kept because the mode still drives the sidebar subfolder swap
     // (tech/ vs cms/) in ViewerWindow::switch_mode_directory. Styled as
     // small flat toggle buttons with uppercase labels via .mode-button.
@@ -120,7 +130,8 @@ HeaderBar::HeaderBar() {
         if (m_on_mode) m_on_mode(mode);
     });
 
-    // ── Search entry: created now but NOT inserted yet ─────────────────
+    // SEARCH ENTRY, CREATED NOW BUT NOT INSERTED YET
+    //
     // Explorer-style: the entry is the centre title widget when search
     // is active and the plain title label takes that slot otherwise.
     m_search.set_placeholder_text("Filter files... (Ctrl+F)");
@@ -141,7 +152,7 @@ HeaderBar::HeaderBar() {
         if (m_on_search_toggle) m_on_search_toggle();
     });
 
-    // ── Right-aligned glyph button cluster (pack_end reverses order) ───
+    // RIGHT-ALIGNED GLYPH BUTTON CLUSTER, pack_end REVERSES THE ORDER
     //
     //   [search] [mark-read] [refresh] [settings]
     //
