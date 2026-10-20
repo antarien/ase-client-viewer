@@ -325,8 +325,7 @@ add_executable(ase-viewer
     src/tree_view.cpp
     src/canvas.cpp
     src/settings.cpp
-    src/preferences.cpp
-    src/folder_picker.cpp
+    src/preferences.cpp       # usecase:101129 - choose a folder: the picker comes from ase::adp::gtk
     src/render/vwr_rndr_text.cpp
     src/render/vwr_rndr_inline.cpp
     src/render/vwr_rndr_doc.cpp
@@ -361,7 +360,6 @@ add_executable(ase-viewer
     include/viewer/canvas.hpp
     include/viewer/settings.hpp
     include/viewer/preferences.hpp
-    include/viewer/folder_picker.hpp
 )
 
 target_include_directories(ase-viewer PRIVATE

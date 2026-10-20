@@ -15,30 +15,34 @@
  *
  *              Each control writes its one ViewerSettings field in its own
  *              callback and saves at once, so the window needs no apply button
- *              and no second copy of the settings.
+ *              and holds no settings of its own.
+ *
+ *              The cells, strips and rows come from ase::adp::adw::cockpit
+ *              (usecase:101134 - lay out settings cells) and the root folder is
+ *              chosen through ase::adp::adw::folder_picker (usecase:101129 -
+ *              choose a folder): the explorer lays out and picks with the same
+ *              two.
  *
  * @module      ase-client-viewer
  * @layer       5 (Servers & Clients)
  * @category    render/ui/screen
  * @usecase     usecase:100008 - render the knowledge stock
  * @created     2026-04-13
- * @modified    2026-10-13
- * @version     00.00.35.00035 [core]
+ * @modified    2026-10-19
+ * @version     00.00.36.00036 [core]
  */
 
 #include <viewer/preferences.hpp>
-#include <viewer/folder_picker.hpp>
 
 #include <ase/adp/adw/adw.hpp>
+#include <ase/adp/adw/cockpit.hpp>
+#include <ase/adp/adw/folder_picker.hpp>
 
 #include "design_tokens.hpp"
 
 #include <adwaita.h>
 #include <gtk/gtk.h>
 
-#include <ase/containers/vector.hpp>
-
-#include <initializer_list>
 #include <string>
 #include <utility>
 
@@ -47,6 +51,12 @@ namespace ase::viewer {
 namespace {
 
 namespace t = ase::theme;
+
+using ase::adp::adw::cockpit::make_cell;
+using ase::adp::adw::cockpit::make_cell_row;
+using ase::adp::adw::cockpit::make_dropdown;
+using ase::adp::adw::cockpit::make_section_strip;
+using ase::adp::adw::cockpit::make_toggle;
 
 // Cockpit window default — same proportion math as the explorer, slightly
 // smaller because the viewer has fewer settings to show.
@@ -79,57 +89,8 @@ void save_and_notify() {
     if (c.on_changed) c.on_changed();
 }
 
-// SMALL BUILDERS, MIRRORING THE EXPLORER settings_dialog.cpp
-
-GtkWidget* make_section_strip(const char* title) {
-    GtkWidget* label = gtk_label_new(title);
-    gtk_widget_add_css_class(label, "ase-cfg-section-title");
-    gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
-    gtk_widget_set_hexpand(label, TRUE);
-    return label;
-}
-
-// A flush "cell" hosting one labelled control. Stacks an uppercase label
-// above the actual control — used by every page.
-GtkWidget* make_cell(const char* label_text, GtkWidget* control) {
-    GtkWidget* box = gtk_box_new(GTK_ORIENTATION_VERTICAL, t::space_xs);
-    gtk_widget_add_css_class(box, "ase-cfg-cell");
-    gtk_widget_set_hexpand(box, TRUE);
-    gtk_widget_set_vexpand(box, FALSE);
-
-    GtkWidget* label = gtk_label_new(label_text);
-    gtk_widget_add_css_class(label, "ase-cfg-cell-label");
-    gtk_label_set_xalign(GTK_LABEL(label), 0.0f);
-    gtk_box_append(GTK_BOX(box), label);
-
-    GtkWidget* value_row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, t::space_sm);
-    gtk_widget_add_css_class(value_row, "ase-cfg-cell-value");
-    gtk_widget_set_hexpand(value_row, TRUE);
-    gtk_box_append(GTK_BOX(value_row), control);
-    gtk_widget_set_hexpand(control, TRUE);
-    gtk_widget_set_halign(control, GTK_ALIGN_START);
-    gtk_box_append(GTK_BOX(box), value_row);
-
-    return box;
-}
-
-GtkWidget* make_toggle(bool initial) {
-    GtkWidget* sw = gtk_switch_new();
-    gtk_switch_set_active(GTK_SWITCH(sw), initial ? TRUE : FALSE);
-    gtk_widget_set_valign(sw, GTK_ALIGN_CENTER);
-    gtk_widget_set_halign(sw, GTK_ALIGN_START);
-    return sw;
-}
-
-GtkWidget* make_dropdown(const ase::containers::Vector<const char*>& choices, unsigned selected) {
-    ase::containers::Vector<const char*> with_null(choices);
-    with_null.push_back(nullptr);
-    GtkWidget* dd = gtk_drop_down_new_from_strings(with_null.data());
-    gtk_drop_down_set_selected(GTK_DROP_DOWN(dd), selected);
-    gtk_widget_set_valign(dd, GTK_ALIGN_CENTER);
-    return dd;
-}
-
+// A spin button over [lo, hi] in `step`, set to `initial` - the one builder only the
+// viewer's pages use; the shared cells stand in ase::adp::adw::cockpit.
 GtkWidget* make_spin(int lo, int hi, int step, int initial) {
     GtkWidget* sp = gtk_spin_button_new_with_range(
         static_cast<double>(lo), static_cast<double>(hi),
@@ -137,16 +98,6 @@ GtkWidget* make_spin(int lo, int hi, int step, int initial) {
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(sp), static_cast<double>(initial));
     gtk_widget_set_valign(sp, GTK_ALIGN_CENTER);
     return sp;
-}
-
-// A horizontal row of cells. Cells share the row evenly via hexpand.
-GtkWidget* make_cell_row(std::initializer_list<GtkWidget*> cells) {
-    GtkWidget* row = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
-    gtk_widget_set_hexpand(row, TRUE);
-    for (GtkWidget* cell : cells) {
-        gtk_box_append(GTK_BOX(row), cell);
-    }
-    return row;
 }
 
 // FIELD-SPECIFIC CALLBACKS
@@ -177,6 +128,15 @@ void cb_code_font_changed(GObject* obj, GParamSpec*, gpointer) {
     save_and_notify();
 }
 
+// Fires once the user accepts a directory in the picker. `user_data` is the root entry
+// the browse button carries; writing into it triggers cb_default_root_changed, which in
+// turn updates ViewerSettings::default_root.
+void cb_root_chosen(const std::string& path, void* user_data) {
+    GtkWidget* entry = static_cast<GtkWidget*>(user_data);
+    if (entry == nullptr) return;
+    gtk_editable_set_text(GTK_EDITABLE(entry), path.c_str());
+}
+
 void cb_browse_root_clicked(GtkButton* btn, gpointer user_data) {
     GtkWidget*  entry  = GTK_WIDGET(user_data);
     GtkRoot*    root   = gtk_widget_get_root(GTK_WIDGET(btn));
@@ -185,12 +145,9 @@ void cb_browse_root_clicked(GtkButton* btn, gpointer user_data) {
     const char* current = gtk_editable_get_text(GTK_EDITABLE(entry));
     std::string start = current != nullptr ? std::string{current} : std::string{};
 
-    folder_picker::show(parent, start,
-        [entry](const std::string& path) {
-            // Writing into the entry triggers cb_default_root_changed,
-            // which in turn updates ViewerSettings::default_root.
-            gtk_editable_set_text(GTK_EDITABLE(entry), path.c_str());
-        });
+    // The entry outlives the picker: the picker is modal over the preferences window
+    // that owns the entry.
+    ase::adp::adw::folder_picker::show(parent, start, cb_root_chosen, entry);
 }
 
 void cb_default_root_changed(GtkEditable* e, gpointer) {
