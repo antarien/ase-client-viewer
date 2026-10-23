@@ -235,7 +235,9 @@ section_line "$HASH" "Build" "${BUILD_MODE} (${BUILD_TYPE}, ${BUILD_JOBS} thread
 
 if [ "$IS_FULLCLEAN" = true ]; then
     section_header "Full Clean" 71
-    section_line "x" "Removing entire build directory"
+    # A removal on purpose, never a failure: the removal symbol of console.sh, not the cross of an
+    # error.
+    section_line "−" "Removing entire build directory"
     section_detail "Path: $BUILD_DIR"
 
     rm -rf "$BUILD_DIR" 2>/dev/null || true
@@ -246,7 +248,7 @@ elif [ "$IS_CLEAN" = true ]; then
     section_header "Clean (preserving _deps)" 71
 
     if [ -d "$BUILD_DIR" ]; then
-        section_line "x" "Cleaning build cache"
+        section_line "−" "Cleaning build cache"
         section_detail "Path: $BUILD_DIR"
 
         cd "$BUILD_DIR"
@@ -316,6 +318,12 @@ mkdir -p "$BUILD_DIR"
 
 section_header "Build" 214
 
+# ONE LABEL COLUMN FOR THE WHOLE SECTION, FIXED BEFORE ITS FIRST LINE (the column is as wide as the
+# longest label). A configure run lists every unit as its own line in that column, so it widens
+# BUILD_LW from the CMake output before the first line prints; every section_line below takes it -
+# CMake, Ninja, Build complete.
+BUILD_LW=18
+
 # SMART: Only run CMake if build.ninja doesn't exist or build files changed
 # Wrapped in spinner because find scans project tree
 _check_cmake_needed() {
@@ -351,7 +359,7 @@ NEEDS_CMAKE="${_cmake_result%%:*}"
 CMAKE_REASON="${_cmake_result#*:}"
 
 if [ "$NEEDS_CMAKE" = "false" ]; then
-    section_line "$CHECK" "CMake" "cached (build.ninja up-to-date)" 18
+    section_line "$CHECK" "CMake" "cached (build.ninja up-to-date)" "$BUILD_LW"
 fi
 
 if [ "$NEEDS_CMAKE" = true ]; then
@@ -368,7 +376,15 @@ if [ "$NEEDS_CMAKE" = true ]; then
     CMAKE_OUTPUT="$SPIN_OUT"
     CMAKE_RESULT=$SPIN_EXIT
 
-    section_line "$HASH" "CMake" "${CMAKE_REASON:-configuration}" 18
+    # The unit names are labels of this section: the column takes the longest before the first line
+    # prints (a here-string, not a pipe - the loop must set BUILD_LW here).
+    while read -r line; do
+        if [[ "$line" =~ ^"-- Configuring "(ase-[a-z0-9-]+)" v" ]]; then
+            [ $(( ${#BASH_REMATCH[1]} + 2 )) -gt "$BUILD_LW" ] && BUILD_LW=$(( ${#BASH_REMATCH[1]} + 2 ))
+        fi
+    done <<< "$CMAKE_OUTPUT"
+
+    section_line "$HASH" "CMake" "${CMAKE_REASON:-configuration}" "$BUILD_LW"
     section_detail "Generator: Ninja"
     section_detail "Build Type: ${BUILD_TYPE}"
 
@@ -378,7 +394,9 @@ if [ "$NEEDS_CMAKE" = true ]; then
         if [[ "$line" =~ ^"-- Configuring "(ase-[a-z0-9-]+)" v"([0-9.]+) ]]; then
             module="${BASH_REMATCH[1]}"
             version="${BASH_REMATCH[2]}"
-            echo -e "  ${SEC_COLOR}│${NC}       ${CYAN}+${NC} ${CYAN}${module}${NC} ${MUTED}v${version}${NC}"
+            # One line of the section grid: "+" in the symbol column, the unit in the label column,
+            # the version in the value column.
+            section_line "+" "$module" "v${version}" "$BUILD_LW"
         # Found package lines
         elif [[ "$line" =~ ^"-- Found "(.*) ]]; then
             pkg="${BASH_REMATCH[1]}"
@@ -407,7 +425,7 @@ if [ "$NEEDS_CMAKE" = true ]; then
     STEP_END=$(date +%s%3N)
     STEP_DURATION=$(awk "BEGIN {printf \"%.2f\", ($STEP_END - $STEP_START) / 1000}")
     section_pipe
-    section_line "$CHECK" "CMake complete" "${STEP_DURATION}s" 18
+    section_line "$CHECK" "CMake complete" "${STEP_DURATION}s" "$BUILD_LW"
 fi
 section_pipe
 
@@ -417,7 +435,7 @@ section_pipe
 
 STEP_START=$(date +%s%3N)
 
-section_line "$HASH" "Ninja" "ase-viewer (${BUILD_JOBS} threads)" 18
+section_line "$HASH" "Ninja" "ase-viewer (${BUILD_JOBS} threads)" "$BUILD_LW"
 echo ""
 
 # Build with Ninja — pseudo-TTY so ninja streams in real-time
@@ -452,11 +470,11 @@ script -qfec "stty cols 10000 2>/dev/null; $BUILD_PREFIX ninja -j${BUILD_JOBS}" 
             case "$line" in
                 "ninja: no work to do.")
                     printf "\r\033[K"; _spin_lbl=""   # unconditional: section_line has no \r of its own
-                    section_line "$CHECK" "Ninja" "no work to do" 18 ;;
+                    section_line "$CHECK" "Ninja" "no work to do" "$BUILD_LW" ;;
                 "ninja: build stopped"*)
                     printf "\r\033[K"; _spin_lbl=""   # unconditional: else the line shifts right after a spinner frame
                     printf "\n"
-                    section_line "$CROSS" "Build stopped" "interrupted" 18 ;;
+                    section_line "$CROSS" "Build stopped" "interrupted" "$BUILD_LW" ;;
                 "ninja: "*)
                     printf "\r\033[K"; _spin_lbl=""   # unconditional: section_line has no \r of its own
                     section_line "!" "${line#ninja: }" ;;
@@ -647,6 +665,12 @@ script -qfec "stty cols 10000 2>/dev/null; $BUILD_PREFIX ninja -j${BUILD_JOBS}" 
 }
 NINJA_EXIT=${PIPESTATUS[0]}
 
+# BACK TO COLUMN 0. `script` switches the outer terminal to raw mode while ninja runs, and a raw
+# terminal does not turn "\n" into "\r\n". Every formatter line starts with "\r"; section_line
+# does not - so after "ninja: no work to do." the cursor stood one line down at the column
+# where that line ended, and the next section line began there (usecase:100013 - build one tier).
+printf "\r"
+
 cd "$SCRIPT_DIR"
 
 if [ $NINJA_EXIT -ne 0 ]; then
@@ -658,7 +682,7 @@ fi
 STEP_END=$(date +%s%3N)
 STEP_DURATION=$(awk "BEGIN {printf \"%.2f\", ($STEP_END - $STEP_START) / 1000}")
 echo ""
-section_line "$CHECK" "Build complete" "${STEP_DURATION}s" 18
+section_line "$CHECK" "Build complete" "${STEP_DURATION}s" "$BUILD_LW"
 
 # ============================================
 # BUILD SUMMARY
