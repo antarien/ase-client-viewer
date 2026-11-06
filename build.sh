@@ -388,17 +388,14 @@ if [ "$NEEDS_CMAKE" = true ]; then
     section_detail "Generator: Ninja"
     section_detail "Build Type: ${BUILD_TYPE}"
 
+    # The configured units, grouped by the console: foreign libraries first, the own units by
+    # layer L0 to L5, the plugins last ("-- Configuring ase-xxx vX.X.X.X").
+    section_units "$SCRIPT_DIR/../.." "$CMAKE_OUTPUT" "$BUILD_LW"
+
     # Show filtered output with proper box-drawing formatting
     echo "$CMAKE_OUTPUT" | while read -r line; do
-        # Module configuration lines: "-- Configuring ase-xxx vX.X.X.X"
-        if [[ "$line" =~ ^"-- Configuring "(ase-[a-z0-9-]+)" v"([0-9.]+) ]]; then
-            module="${BASH_REMATCH[1]}"
-            version="${BASH_REMATCH[2]}"
-            # One line of the section grid: "+" in the symbol column, the unit in the label column,
-            # the version in the value column.
-            section_line "+" "$module" "v${version}" "$BUILD_LW"
         # Found package lines
-        elif [[ "$line" =~ ^"-- Found "(.*) ]]; then
+        if [[ "$line" =~ ^"-- Found "(.*) ]]; then
             pkg="${BASH_REMATCH[1]}"
             echo -e "  ${SEC_COLOR}│${NC}       ${GREEN}${CHECK}${NC} ${TEXT}${pkg}${NC}"
         # CMake Errors (red)
