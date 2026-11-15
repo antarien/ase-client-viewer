@@ -1,11 +1,15 @@
 # Maintainer: Antarien <dev@antarien.com>
+#
+# Copyright (c) Jan Ohlmann. All rights reserved.
+# Licensed to ANTARES SIMULACAO LTDA. Use is governed by LICENSE.md and PJV.md in this repository.
+# SPDX-License-Identifier: LicenseRef-ASE-LIC
 pkgname=ase-viewer
 pkgver=0.0.1
 pkgrel=1
 pkgdesc='ASE TECH & DESIGN Documentation Viewer — Native GTK4 Markdown renderer'
 arch=('x86_64')
 url='https://github.com/antarien/ase-client-viewer'
-license=('custom')
+license=('LicenseRef-ASE-LIC')
 depends=(
     'gtkmm-4.0'
     'libadwaita'

@@ -18,7 +18,11 @@
  * @layer       5 (Client)
  * @created     2026-04-12
  * @modified    2026-08-22
- * @version     1.0.0
+ * @version     00.00.42.00042 [core]
+ *
+ * Copyright (c) Jan Ohlmann. All rights reserved.
+ * Licensed to ANTARES SIMULACAO LTDA. Use is governed by LICENSE.md and PJV.md in this repository.
+ * SPDX-License-Identifier: LicenseRef-ASE-LIC
  *
  * ECS TYPES COMPLIANCE
  *

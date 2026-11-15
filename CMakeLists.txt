@@ -12,6 +12,10 @@ ASE CLIENT BUILD CONFIGURATION
 @created     2026-04-12
 @modified    2026-08-25
 @version     00.00.31.00031 [core]
+
+Copyright (c) Jan Ohlmann. All rights reserved.
+Licensed to ANTARES SIMULACAO LTDA. Use is governed by LICENSE.md and PJV.md in this repository.
+SPDX-License-Identifier: LicenseRef-ASE-LIC
 ]]
 
 # Parse local VERSION (SSOT) if not building from root
