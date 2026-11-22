@@ -1,8 +1,6 @@
 #!/bin/bash
-# ==============================================================================
 # ASE TECH & DESIGN Viewer — Layer 5 Client
 # Professional Build Script with Ninja
-# ==============================================================================
 #
 # Copyright (c) Jan Ohlmann. All rights reserved.
 # Licensed to ANTARES SIMULACAO LTDA. Use is governed by LICENSE.md and PJV.md in this repository.
@@ -61,9 +59,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # VERSION file path
 VERSION_FILE="$SCRIPT_DIR/VERSION"
 
-# ============================================
 # VERSION MANAGEMENT FUNCTIONS
-# ============================================
 
 get_version() {
     local key="$1"
@@ -165,9 +161,7 @@ STATUS=$(get_status)
 STATUS_COLOR=$(get_status_color "$STATUS")
 STATUS_ICON=$(get_status_icon "$STATUS")
 
-# ============================================
 # HELP
-# ============================================
 
 if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
     echo -e "${MAGENTA}ASE TECH & DESIGN Viewer — L5 Client${NC}"
@@ -197,9 +191,7 @@ if [ "$1" == "--help" ] || [ "$1" == "-h" ]; then
     exit 0
 fi
 
-# ============================================
 # CLI FLAGS
-# ============================================
 
 DO_RUN=false
 IS_CLEAN=false
@@ -222,9 +214,7 @@ done
 BUILD_MODE="CLI"
 [ "$BUILD_TYPE" = "Debug" ] && BUILD_MODE="CLI-Debug"
 
-# ============================================
 # HEADER
-# ============================================
 
 section_header "ASE TECH & DESIGN Viewer" 170
 section_line "·" "Native GTK4 markdown documentation viewer"
@@ -233,9 +223,17 @@ section_pipe
 section_line "*" "Version" "v${VERSION} ${STATUS_ICON} [${STATUS}]"
 section_line "$HASH" "Build" "${BUILD_MODE} (${BUILD_TYPE}, ${BUILD_JOBS} threads)"
 
-# ============================================
+# One build per build folder (B0671, usecase:100013): a second ninja appending to the same
+# .ninja_deps gives a record a wrong id, ninja truncates the log there and every unit behind it
+# compiles again. A session build facing a held folder is refused; the operator's build stops a
+# session build and waits for another operator build. The lock is held until this script exits.
+# In this client the lock stands before the clean phase, not behind the battery: a second build
+# refused here must not remove the build folder another build holds. Before it runs what it built,
+# ase_build_unlock gives the lock back: a program left open builds nothing and holds no folder.
+source "$SCRIPT_DIR/../../tools/ase-forge/ase-harness/lib/build_lock.sh"
+ase_build_lock "$BUILD_DIR" || exit 1
+
 # CLEAN PHASE
-# ============================================
 
 if [ "$IS_FULLCLEAN" = true ]; then
     section_header "Full Clean" 71
@@ -277,9 +275,7 @@ elif [ "$IS_CLEAN" = true ]; then
     fi
 fi
 
-# ============================================
 # PREBUILD GATES
-# ============================================
 # Bis 2026-08-18 fuhr dieser Einstiegspunkt KEIN einziges Prebuild-Tor — wie fuenf weitere von
 # elf. Ein Tor, das an einer Stelle nicht laeuft, meldet dort nichts, und das sieht aus wie Ruhe.
 #
@@ -310,15 +306,11 @@ source "$_ASE_BATTERY"
 ASE_GATE_LOADS_MODULES=true
 do_pre_validation
 
-# ============================================
 # CREATE BUILD DIRECTORY
-# ============================================
 
 mkdir -p "$BUILD_DIR"
 
-# ============================================
 # CMAKE CONFIGURATION PHASE
-# ============================================
 
 section_header "Build" 214
 
@@ -430,9 +422,7 @@ if [ "$NEEDS_CMAKE" = true ]; then
 fi
 section_pipe
 
-# ============================================
 # NINJA BUILD PHASE (Streaming-Formatter)
-# ============================================
 
 STEP_START=$(date +%s%3N)
 
@@ -463,7 +453,7 @@ script -qfec "stty cols 10000 2>/dev/null; $BUILD_PREFIX ninja -j${BUILD_JOBS}" 
 
     while true; do
         if IFS= read -r -t 0.08 line; then
-            # === LINE ARRIVED ===
+            # LINE ARRIVED
 
             # Skip empty/whitespace-only lines
             [[ "$line" =~ ^[[:space:]]*$ ]] && continue
@@ -646,7 +636,7 @@ script -qfec "stty cols 10000 2>/dev/null; $BUILD_PREFIX ninja -j${BUILD_JOBS}" 
                     fi ;;
             esac
         else
-            # === TIMEOUT OR EOF ===
+            # TIMEOUT OR EOF
             _rc=$?
             if [ $_rc -gt 128 ]; then
                 # Timeout: draw spinner frame while waiting for next step
@@ -685,9 +675,7 @@ STEP_DURATION=$(awk "BEGIN {printf \"%.2f\", ($STEP_END - $STEP_START) / 1000}")
 echo ""
 section_line "$CHECK" "Build complete" "${STEP_DURATION}s" "$BUILD_LW"
 
-# ============================================
 # BUILD SUMMARY
-# ============================================
 
 # Count built artifacts
 BIN_COUNT=$(find "$BUILD_DIR/bin" -type f -executable 2>/dev/null | wc -l)
@@ -709,9 +697,7 @@ section_line "$HASH" "Artifacts" "${BIN_COUNT} binaries, ${LIB_COUNT} libraries"
 section_line "*" "Version" "v${VERSION} ${STATUS_ICON} [${STATUS}] #${NEW_BUILD}" 18
 section_line "$CHECK" "Status" "Ready" 18
 
-# ============================================
 # NEXT STEPS
-# ============================================
 
 section_header "Next Steps" 110
 
@@ -720,9 +706,7 @@ section_line "$ARROW" "Run Doc" "ase mdv -R /path/to/docs/"
 section_line "$ARROW" "Build+Run" "ase mdv -B -R"
 echo ""
 
-# ============================================
 # RUN (if requested)
-# ============================================
 
 if [ "$DO_RUN" = true ]; then
     section_header "Run" 71
@@ -749,6 +733,7 @@ if [ "$DO_RUN" = true ]; then
             section_line "$ARROW" "Rebuild against the libraries present today"
             exit 1
         fi
+        ase_build_unlock
         section_line "$ARROW" "Starting ase-viewer"
         "$VIEWER_BIN" "${RUN_ARGS[@]}"
     else
