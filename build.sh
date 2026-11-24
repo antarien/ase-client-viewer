@@ -697,6 +697,19 @@ section_line "$HASH" "Artifacts" "${BIN_COUNT} binaries, ${LIB_COUNT} libraries"
 section_line "*" "Version" "v${VERSION} ${STATUS_ICON} [${STATUS}] #${NEW_BUILD}" 18
 section_line "$CHECK" "Status" "Ready" 18
 
+# PUBLISH. The last step of a build: scripts/publish_build.sh lays ase-viewer and its shared
+# libraries (debug sections stripped, no static library) into builds/ase-client-viewer/linux-<arch>/
+# v<version>/ of the root, keeps the three newest and commits and pushes that folder alone; a
+# registered ctest runs first and only a green run publishes. ASE_PUBLISH=0 leaves the root alone.
+# The guide: docs/ase-docs/tech/infrastructure/workflows/WRFL_ASE_BUILD_PUBLISH.md
+section_header "Publish" 110
+if [ "${ASE_PUBLISH:-1}" = "0" ]; then
+    section_line "$SKIP" "Root" "ASE_PUBLISH=0 - left alone" 18
+else
+    PUBLISH_SECTION=open PUBLISH_LW=18 "$SCRIPT_DIR/../../scripts/publish_build.sh" cmake \
+        ase-client-viewer "v${VERSION}-b${NEW_BUILD}" "$BUILD_DIR" bin/ase-viewer lib
+fi
+
 # NEXT STEPS
 
 section_header "Next Steps" 110
